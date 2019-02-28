@@ -4,7 +4,7 @@ import string
 from itertools import chain
 from enum import Enum
 
-import maths.utils as utils
+import mylibs.math as utils
 
 Associativity = Enum('Associativity', 'LEFT RIGHT')
 Arity = Enum('Arity', 'UNARY BINARY')

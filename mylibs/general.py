@@ -1,6 +1,18 @@
 from types import SimpleNamespace
 
 
+class Singleton(type):
+	_instances = {}
+
+	def __call__(cls, *args, **kwargs):
+		if cls not in cls._instances:
+			cls._instances[cls] = super().__call__(*args, **kwargs)
+		return cls._instances[cls]
+
+# class SampleSingleton(metaclass=Singleton):
+#     pass
+
+
 class Config(SimpleNamespace):
 	def __add__(self, other):
 		if isinstance(other, dict):
@@ -38,3 +50,4 @@ class Config(SimpleNamespace):
 
 	def __contains__(self, item):
 		return item in self.__dict__
+
