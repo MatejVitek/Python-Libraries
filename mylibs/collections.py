@@ -1,3 +1,5 @@
+import random
+
 from mylibs.general import Singleton
 
 
@@ -18,3 +20,8 @@ def sum_(it, start=None):
 		return sum(it, 0)
 	except TypeError:
 		return sum(it, ZERO)
+
+
+def shuffle(l):
+	random.shuffle(l)
+	return l
