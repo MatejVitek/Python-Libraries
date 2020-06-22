@@ -7,7 +7,7 @@ from mylibs.general import Singleton
 class _Zero(metaclass=Singleton):
 	def __add__(self, other):
 		return other
-	
+
 	def __radd__(self, other):
 		return other
 
@@ -21,11 +21,11 @@ def sum_(it, start=None):
 		return sum(it, 0)
 	except TypeError:
 		return sum(it, ZERO)
-		
-		
-def ensure_iterable(x, listify_single_string=False):
+
+
+def ensure_iterable(x, process_single_string=False):
 	if isinstance(x, str) and listify_single_string:
-		return [x]
+		return x,
 	try:
 		_ = iter(x)
 		return x
@@ -35,14 +35,14 @@ def ensure_iterable(x, listify_single_string=False):
 				pass
 			return x
 		except TypeError:
-			return [x]
+			return x,
 
 
 def shuffle(l):
 	random.shuffle(l)
 	return l
-	
-	
+
+
 class DotDict(dict):
 	def __init__(self, *args, **kwargs):
 		d = dict(*args, **kwargs)
