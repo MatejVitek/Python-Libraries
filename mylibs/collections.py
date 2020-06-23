@@ -24,7 +24,7 @@ def sum_(it, start=None):
 
 
 def ensure_iterable(x, process_single_string=False):
-	if isinstance(x, str) and listify_single_string:
+	if isinstance(x, str) and process_single_string:
 		return x,
 	try:
 		_ = iter(x)
