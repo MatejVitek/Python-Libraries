@@ -1,3 +1,5 @@
+import argparse
+from ast import literal_eval
 import sys
 import types
 
@@ -12,6 +14,27 @@ class Singleton(type):
 
 # class SampleSingleton(metaclass=Singleton):
 #     pass
+
+
+class StoreDictPairs(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string):
+		d = getattr(namespace, self.dest)
+		if d is None:
+			d = {}
+		unpacked = []
+		for value in values:
+			if '=' in value:
+				unpacked.extend(value.split('='))
+			else:
+				unpacked.append(value)
+		if len(unpacked) % 2 != 0:
+			raise ValueError("Each key should have a corresponding value")
+		for key, value in zip(unpacked[0::2], unpacked[1::2]):
+			try:
+				d[key] = literal_eval(value)
+			except ValueError:
+				d[key] = value
+		setattr(namespace, self.dest, d)  # necessary if new dictionary was created
 
 
 class Config(types.SimpleNamespace):

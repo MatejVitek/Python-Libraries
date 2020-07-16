@@ -67,7 +67,8 @@ class RunningStatisticsVar:
 
 	def __str__(self):
 		if self.std:
-			return f"{self.name} (\u03BC \u00B1 \u03C3): {self.mean} \u00B1 {self.std}"
+			#return f"{self.name} (\u03BC \u00B1 \u03C3): {self.mean} \u00B1 {self.std}"
+			return f"{self.name} (μ ± σ): {self.mean} ± {self.std}"
 		else:
 			return f"{self.name}: {self.mean}"
 
