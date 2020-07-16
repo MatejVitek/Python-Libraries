@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 import random
 
-from mylibs.general import Singleton
+from matej import Singleton
 
 
 class _Zero(metaclass=Singleton):

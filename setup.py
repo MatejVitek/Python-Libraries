@@ -1,3 +1,11 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
-setup(name="My Python Libraries", version="1.0", packages=["mylibs"])
+setup(
+	name="matej-libs",
+	version="1.0",
+	author="Matej Vitek",
+	author_email="matej.vitek.business@gmail.com",
+	url="https://github.com/MatejVitek/Python-Libraries",
+	packages=find_packages(),
+	install_requires=['joblib', 'tqdm', 'numpy']
+)
