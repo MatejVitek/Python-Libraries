@@ -9,6 +9,10 @@ def multi_replace(s, replacements, ignore_case=False):
 	return pattern.sub(lambda match: replacements[match.group(0)], s)
 	
 
-def alphanum(s):
-	regex = re.compile(r'[\W_]+')
-	return regex.sub('', s)
+def alphanum(s, allow_underscore=False):
+	return re.sub(r'[\W]+' if allow_underscore else r'[\W_]+', '', s)
+	
+
+def alpha(s):
+	return re.sub(r'[^A-Za-z]+', '', s)
+

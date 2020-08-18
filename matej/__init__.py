@@ -1,7 +1,19 @@
 import argparse
 from ast import literal_eval
+from contextlib import contextmanager
+import os
 import sys
 import types
+
+
+@contextmanager
+def cwd(path):
+	oldwd = os.getcwd()
+	os.chdir(path)
+	try:
+		yield
+	finally:
+		os.chdir(oldwd)
 
 
 class Singleton(type):

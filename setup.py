@@ -7,5 +7,6 @@ setup(
 	author_email="matej.vitek.business@gmail.com",
 	url="https://github.com/MatejVitek/Python-Libraries",
 	packages=find_packages(),
+	python_requires='>=3.5',
 	install_requires=['joblib', 'tqdm', 'numpy']
 )
