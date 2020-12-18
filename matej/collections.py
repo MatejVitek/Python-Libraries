@@ -1,24 +1,14 @@
 from collections.abc import Mapping
 import random
 
-from matej import Singleton
-
-
-class _Zero(metaclass=Singleton):
-	def __add__(self, other):
-		return other
-
-	def __radd__(self, other):
-		return other
-
-ZERO = _Zero()
+from matej import ZERO
 
 
 def sum_(it, start=None):
 	if start is not None:
 		return sum(it, start)
 	try:
-		return sum(it, 0)
+		return sum(it)
 	except TypeError:
 		return sum(it, ZERO)
 
@@ -41,6 +31,14 @@ def ensure_iterable(x, process_single_string=False):
 def shuffle(l):
 	random.shuffle(l)
 	return l
+
+
+def shuffled(l):
+	new_l = random.sample(l, len(l))
+	try:
+		return type(l)(new_l)
+	except TypeError:
+		return new_l
 
 
 class DotDict(dict):
