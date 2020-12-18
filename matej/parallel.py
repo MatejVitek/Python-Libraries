@@ -5,7 +5,17 @@ from tqdm import tqdm
 
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
-    """Context manager to patch joblib to report into tqdm progress bar given as argument"""
+    """Context manager to patch joblib to report into tqdm progress bar given as argument.
+    From: https://stackoverflow.com/a/58936697/5769814
+    Currently causes a significant performance drop, particularly when the processing function is otherwise fast.
+    
+    Example usage:
+    with tqdm_joblib(tqdm(iterable)):
+		Parallel(n_jobs=-1)(
+			delayed(process_file)(f)
+			for f in files
+		)
+    """
     class TqdmBatchCompletionCallback:
         def __init__(self, time, index, parallel):
             self.index = index
