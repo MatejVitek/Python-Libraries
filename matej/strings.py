@@ -16,3 +16,8 @@ def alphanum(s, allow_underscore=False):
 def alpha(s):
 	return re.sub(r'[^A-Za-z]+', '', s)
 
+
+def print_conditional(s, verbosity_level, min_level=1):
+	if verbosity_level >= min_level:
+		print(s)
+
