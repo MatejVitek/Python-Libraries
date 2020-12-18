@@ -7,7 +7,7 @@ import types
 
 
 @contextmanager
-def cwd(path):
+def working_dir(path):
 	oldwd = os.getcwd()
 	os.chdir(path)
 	try:
@@ -26,6 +26,47 @@ class Singleton(type):
 
 # class SampleSingleton(metaclass=Singleton):
 #     pass
+
+
+class _Zero(metaclass=Singleton):
+	def __add__(self, other):
+		return other
+
+	__radd__ = __add__
+
+	def __mul__(self, other):
+		return self
+
+	__rmul__ = __mul__
+
+	def __bool__(self):
+		return False
+
+	def __str__(self):
+		return "0"
+
+	def __index__(self):
+		return 0
+
+ZERO = _Zero()
+
+
+class _One(metaclass=Singleton):
+	def __mul__(self, other):
+		return other
+
+	__rmul__ = __mul__
+
+	def __bool__(self):
+		return True
+
+	def __str__(self):
+		return "1"
+
+	def __index__(self):
+		return 1
+
+ONE = _One()
 
 
 class StoreDictPairs(argparse.Action):
