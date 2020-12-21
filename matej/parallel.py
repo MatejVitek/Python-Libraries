@@ -7,7 +7,6 @@ from tqdm import tqdm
 def tqdm_joblib(tqdm_object):
     """Context manager to patch joblib to report into tqdm progress bar given as argument.
     From: https://stackoverflow.com/a/58936697/5769814
-    Currently causes a significant performance drop, particularly when the processing function is otherwise fast.
     
     Example usage:
     with tqdm_joblib(tqdm(iterable)):
