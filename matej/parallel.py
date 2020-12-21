@@ -9,10 +9,10 @@ def tqdm_joblib(tqdm_object):
     From: https://stackoverflow.com/a/58936697/5769814
     
     Example usage:
-    with tqdm_joblib(tqdm(iterable)):
+    with tqdm_joblib(tqdm(files)) as data:
 		Parallel(n_jobs=-1)(
 			delayed(process_file)(f)
-			for f in files
+			for f in data
 		)
     """
     class TqdmBatchCompletionCallback:
