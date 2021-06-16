@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import defaultdict, Mapping
 from functools import reduce
 import random
 
@@ -65,6 +65,10 @@ class DotDict(dict):
 			raise AttributeError(f"No attribute called: {k}") from ex
 
 	__setattr__ = dict.__setitem__
+    
+
+# Recursive defaultdict
+treedict = lambda: defaultdict(treedict)
 
 
 def lmap(*args, **kw):
