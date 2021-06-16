@@ -1,4 +1,5 @@
-from collections.abc import defaultdict, Mapping
+from collections import defaultdict
+from collections.abc import Mapping
 from functools import reduce
 import random
 
