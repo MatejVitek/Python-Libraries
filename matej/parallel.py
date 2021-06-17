@@ -3,6 +3,7 @@ import joblib
 from tqdm import tqdm
 
 
+# https://stackoverflow.com/a/58936697/5769814
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
 	"""Context manager to patch joblib to report into tqdm progress bar given as argument.

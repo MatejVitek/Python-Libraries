@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Mapping
 from functools import reduce
 import random
@@ -18,7 +19,7 @@ def ensure_iterable(x, process_single_string=False):
 	if isinstance(x, str) and process_single_string:
 		return x,
 	try:
-		_ = iter(x)
+		iter(x)
 		return x
 	except TypeError:
 		try:
@@ -65,6 +66,10 @@ class DotDict(dict):
 			raise AttributeError(f"No attribute called: {k}") from ex
 
 	__setattr__ = dict.__setitem__
+    
+
+# Recursive defaultdict
+treedict = lambda: defaultdict(treedict)
 
 
 def dmap(*args, **kw):
