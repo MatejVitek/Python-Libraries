@@ -66,7 +66,7 @@ class DotDict(dict):
 			raise AttributeError(f"No attribute called: {k}") from ex
 
 	__setattr__ = dict.__setitem__
-    
+
 
 # Recursive defaultdict
 treedict = lambda: defaultdict(treedict)
