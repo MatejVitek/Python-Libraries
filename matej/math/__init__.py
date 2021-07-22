@@ -62,6 +62,8 @@ class RunningStatisticsVar:
 	def last(self, n=1):
 		if n == 1:
 			return self._cache[-1] if self._cache else None
+		elif n == 'all':
+			return list(self._cache)
 		else:
 			return self._cache[-n:]
 

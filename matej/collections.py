@@ -66,10 +66,14 @@ class DotDict(dict):
 			raise AttributeError(f"No attribute called: {k}") from ex
 
 	__setattr__ = dict.__setitem__
-    
+
 
 # Recursive defaultdict
 treedict = lambda: defaultdict(treedict)
+
+
+def dmap(*args, **kw):
+	return dict(map(*args, **kw))
 
 
 def lmap(*args, **kw):
@@ -84,6 +88,10 @@ def tmap(*args, **kw):
 	return tuple(map(*args, **kw))
 
 
+def dfilter(*args, **kw):
+	return dict(filter(*args, **kw))
+
+
 def lfilter(*args, **kw):
 	return list(filter(*args, **kw))
 
@@ -96,6 +104,10 @@ def tfilter(*args, **kw):
 	return tuple(filter(*args, **kw))
 
 
+def dreduce(*args, **kw):
+	return dict(reduce(*args, **kw))
+
+
 def lreduce(*args, **kw):
 	return list(reduce(*args, **kw))
 
@@ -106,6 +118,10 @@ def sreduce(*args, **kw):
 
 def treduce(*args, **kw):
 	return tuple(reduce(*args, **kw))
+
+
+def dzip(*args, **kw):
+	return dict(zip(*args, **kw))
 
 
 def lzip(*args, **kw):
