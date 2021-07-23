@@ -1,0 +1,19 @@
+package:
+     name: matej-libs
+     version: "1.0"
+
+source:
+     path: .
+     git_path: https://github.com/MatejVitek/Python-Libraries.git
+
+build:
+     script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
+
+requirements:
+     build:
+         - python
+         - setuptools
+     run:
+         - joblib
+         - numpy
+         - tqdm
