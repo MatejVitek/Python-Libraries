@@ -15,7 +15,7 @@ def dfactorial(n):
     
 
 class RunningStatisticsVar:
-	def __init__(self, name="", init_values=None, ddof=0, cache_len=100):
+	def __init__(self, name="", init_values=None, ddof=0, max_cache_size=100):
 		self.name = name
 
 		self.mean = 0
@@ -27,7 +27,7 @@ class RunningStatisticsVar:
 		self._ddof = ddof
 		
 		self._cache = []
-		self._cache_len = cache_len
+		self._cache_len = max_cache_size
 
 		if init_values is not None:
 			self.update(init_values)
