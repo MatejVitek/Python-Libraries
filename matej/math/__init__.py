@@ -5,17 +5,17 @@ import operator as op
 
 
 def ncr(n, r):
-    r = min(r, n - r)
-    numerator = reduce(op.mul, range(n - r + 1, n + 1), 1)
-    return numerator // math.factorial(r)
+	r = min(r, n - r)
+	numerator = reduce(op.mul, range(n - r + 1, n + 1), 1)
+	return numerator // math.factorial(r)
 
 
 def dfactorial(n):
-    return reduce(op.mul, range(n, 2, -2), 1)
+	return reduce(op.mul, range(n, 2, -2), 1)
 
 
-class RunningStatisticsVar:
-	def __init__(self, name="", init_values=None, ddof=0, max_cache_size=100):
+class RunningStats:
+	def __init__(self, name="", init_values=None, ddof=0, parallel=None, max_cache_size=100):
 		self.name = name
 
 		self.mean = 0
@@ -25,6 +25,7 @@ class RunningStatisticsVar:
 		self._n = 0
 		self._s = 0
 		self._ddof = ddof
+		self._lock = None
 
 		self._cache = []
 		self._cache_len = max_cache_size
@@ -32,7 +33,17 @@ class RunningStatisticsVar:
 		if init_values is not None:
 			self.update(init_values)
 
+		if parallel == 'multiprocessing':
+			from multiprocessing import Lock
+			self._lock = Lock()
+		elif parallel == 'threading':
+			from threading import Lock
+			self._lock = Lock()
+
 	def update(self, values):
+		if self._lock:
+			self._lock.acquire()
+
 		values = np.array(values, ndmin=1)
 		n = len(values)
 
@@ -47,7 +58,13 @@ class RunningStatisticsVar:
 		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
 		self.std = np.sqrt(self.var)
 
+		if self._lock:
+			self._lock.release()
+
 	def update_single(self, value):
+		if self._lock:
+			self._lock.acquire()
+
 		self._n += 1
 		self._cache.append(value)
 		self._cache = self._cache[-self._cache_len:]
@@ -58,6 +75,9 @@ class RunningStatisticsVar:
 		self._s += (value - old_mean) * (value - self.mean)
 		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
 		self.std = np.sqrt(self.var)
+
+		if self._lock:
+			self._lock.release()
 
 	def last(self, n=1):
 		if n == 1:
