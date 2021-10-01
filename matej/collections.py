@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from functools import reduce
 import random
 
@@ -41,6 +41,14 @@ def shuffled(l):
 		return type(l)(new_l)
 	except TypeError:
 		return new_l
+
+
+def flatten(l):
+	for x in l:
+		if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+			yield from flatten(x)
+		else:
+			yield x
 
 
 class DotDict(dict):
