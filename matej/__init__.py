@@ -39,6 +39,16 @@ class _Zero(metaclass=Singleton):
 
 	__rmul__ = __mul__
 
+	def __or__(self, other):
+		return other
+
+	__ror__ = __or__
+
+	def __and__(self, other):
+		return self
+
+	__rand__ = __and__
+
 	def __bool__(self):
 		return False
 
@@ -56,6 +66,16 @@ class _One(metaclass=Singleton):
 		return other
 
 	__rmul__ = __mul__
+
+	def __or__(self, other):
+		return self
+
+	__ror__ = __or__
+
+	def __and__(self, other):
+		return other
+
+	__rand__ = __and__
 
 	def __bool__(self):
 		return True

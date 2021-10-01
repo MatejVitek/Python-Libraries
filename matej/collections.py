@@ -1,18 +1,16 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from functools import reduce
+from functools import partial, reduce
+import operator as op
 import random
 
-from matej import ZERO
 
-
-def sum_(it, start=None):
-	if start is not None:
-		return sum(it, start)
-	try:
-		return sum(it)
-	except TypeError:
-		return sum(it, ZERO)
+# These will work without an explicit initial value, as is required for the built-in sum when not working with ints
+# However they will fail on an empty array if an initial value isn't given
+sum_ = partial(reduce, op.add)
+mul = partial(reduce, op.mul)
+union = partial(reduce, op.or_)
+intersection = partial(reduce, op.and_)
 
 
 def ensure_iterable(x, process_single_string=False):
@@ -110,22 +108,6 @@ def sfilter(*args, **kw):
 
 def tfilter(*args, **kw):
 	return tuple(filter(*args, **kw))
-
-
-def dreduce(*args, **kw):
-	return dict(reduce(*args, **kw))
-
-
-def lreduce(*args, **kw):
-	return list(reduce(*args, **kw))
-
-
-def sreduce(*args, **kw):
-	return set(reduce(*args, **kw))
-
-
-def treduce(*args, **kw):
-	return tuple(reduce(*args, **kw))
 
 
 def dzip(*args, **kw):
