@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from functools import partial, reduce
+from enum import Enum
+from functools import cache, partial, reduce, total_ordering
 import operator as op
 import random
 
@@ -72,6 +73,23 @@ class DotDict(dict):
 			raise AttributeError(f"No attribute called: {k}") from ex
 
 	__setattr__ = dict.__setitem__
+
+
+@total_ordering
+class OrderedEnum(Enum):
+	def __lt__(self, other):
+		if type(self) is not type(other):
+			return NotImplemented
+		member_list = list(type(self))
+		return member_list.index(self) < member_list.index(other)
+
+
+@total_ordering
+class ValueOrderedEnum(Enum):
+	def __lt__(self, other):
+		if type(self) is not type(other):
+			return NotImplemented
+		return self.value < other.value
 
 
 # Recursive defaultdict
