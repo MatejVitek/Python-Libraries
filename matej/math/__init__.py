@@ -1,7 +1,10 @@
+from copy import deepcopy
 from functools import reduce
 import math
+import multiprocessing
 import numpy as np
 import operator as op
+import threading
 
 
 def ncr(n, r):
@@ -25,6 +28,7 @@ class RunningStats:
 		self._n = 0
 		self._s = 0
 		self._ddof = ddof
+		self._parallel = parallel
 		self._lock = None
 
 		self._cache = []
@@ -33,15 +37,14 @@ class RunningStats:
 		if init_values is not None:
 			self.update(init_values)
 
-		if parallel == 'multiprocessing':
-			from multiprocessing import Lock
-			self._lock = Lock()
-		elif parallel == 'threading':
-			from threading import Lock
-			self._lock = Lock()
+		if self._parallel == 'multiprocessing':
+			self._lock = multiprocessing.Lock()
+		elif self._parallel == 'threading':
+			self._lock = threading.Lock()
 
+	# Welford's algorithm update step for multiple values
 	def update(self, values):
-		if self._lock:
+		if self._parallel:
 			self._lock.acquire()
 
 		values = np.array(values, ndmin=1)
@@ -58,11 +61,12 @@ class RunningStats:
 		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
 		self.std = np.sqrt(self.var)
 
-		if self._lock:
+		if self._parallel:
 			self._lock.release()
 
+	# Welford's algorithm update step for single value
 	def update_single(self, value):
-		if self._lock:
+		if self._parallel:
 			self._lock.acquire()
 
 		self._n += 1
@@ -76,7 +80,7 @@ class RunningStats:
 		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
 		self.std = np.sqrt(self.var)
 
-		if self._lock:
+		if self._parallel:
 			self._lock.release()
 
 	def last(self, n=1):
@@ -96,3 +100,44 @@ class RunningStats:
 
 	def __len__(self):
 		return self._n
+
+	def __deepcopy__(self, memo):
+		result = type(self)()
+		result.__dict__.update({
+			k: deepcopy(v)
+			for k, v in self.__dict__.items()
+			if k != '_lock'
+		})
+
+		if result._parallel == 'multiprocessing':
+			result._lock = multiprocessing.Lock()
+		elif result._parallel == 'threading':
+			result._lock = threading.Lock()
+
+		return result
+
+	# Pooling
+	def __or__(self, other):
+		return deepcopy(self).__ior__(other)
+
+	# Concatenated streams (https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm)
+	def __ior__(self, other):
+		if self._parallel:
+			self._lock.acquire()
+
+		n = self._n + other._n
+		delta = other.mean - self.mean
+		self.mean = (self._n * self.mean + other._n * other.mean) / n
+		self._s += other._s + delta ** 2 * self._n * other._n / n
+		self.var = self._s / (n - self._ddof)
+		self.std = np.sqrt(self.var)
+		self._n = n
+
+		if self._parallel:
+			self._lock.release()
+
+		return self
+
+	# Not exactly addition, but this function creates a new RunningStats from the means of the given ones
+	def __add__(self, other):
+		return type(self)(self.name, [self.mean, other.mean], self._ddof, self._parallel, self._cache_len)
