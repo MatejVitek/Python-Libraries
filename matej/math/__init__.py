@@ -137,7 +137,3 @@ class RunningStats:
 			self._lock.release()
 
 		return self
-
-	# Not exactly addition, but this function creates a new RunningStats from the means of the given ones
-	def __add__(self, other):
-		return type(self)(self.name, [self.mean, other.mean], self._ddof, self._parallel, self._cache_len)
