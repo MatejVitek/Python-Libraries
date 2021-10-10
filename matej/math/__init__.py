@@ -18,7 +18,7 @@ def dfactorial(n):
 
 
 class RunningStats:
-	def __init__(self, name="", init_values=None, ddof=0, parallel=None, max_cache_size=3542):
+	def __init__(self, name="", init_values=None, ddof=0, parallel=None, max_cache_size=100):
 		self.name = name
 
 		self.mean = 0
