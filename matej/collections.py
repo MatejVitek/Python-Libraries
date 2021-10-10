@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from enum import Enum
-from functools import cache, partial, reduce, total_ordering
+from functools import partial, reduce, total_ordering
 import operator as op
 import random
 
