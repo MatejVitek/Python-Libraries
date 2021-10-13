@@ -37,12 +37,9 @@ class RunningStats:
 		if init_values is not None:
 			self.update(init_values)
 
-		if self._parallel == 'multiprocessing':
-			self._lock = multiprocessing.Lock()
-		elif self._parallel == 'threading':
-			self._lock = threading.Lock()
+		self._init_lock()
 
-	# Welford's algorithm update step for multiple values
+	# Welford's algorithm update step
 	def update(self, values):
 		if self._parallel:
 			self._lock.acquire()
@@ -58,25 +55,6 @@ class RunningStats:
 		self.mean += (delta / self._n).sum()
 
 		self._s += (delta * (values - self.mean)).sum()
-		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
-		self.std = np.sqrt(self.var)
-
-		if self._parallel:
-			self._lock.release()
-
-	# Welford's algorithm update step for single value
-	def update_single(self, value):
-		if self._parallel:
-			self._lock.acquire()
-
-		self._n += 1
-		self._cache.append(value)
-		self._cache = self._cache[-self._cache_len:]
-
-		old_mean = self.mean
-		self.mean += (value - old_mean) / self._n
-
-		self._s += (value - old_mean) * (value - self.mean)
 		self.var = self._s / (self._n - self._ddof) if self._n > self._ddof else 0
 		self.std = np.sqrt(self.var)
 
@@ -101,24 +79,21 @@ class RunningStats:
 	def __len__(self):
 		return self._n
 
-	def __deepcopy__(self, memo):
-		result = type(self)()
-		result.__dict__.update({
-			k: deepcopy(v)
-			for k, v in self.__dict__.items()
-			if k != '_lock'
-		})
+	def _init_lock(self):
+		if self._parallel == 'multiprocessing':
+			self._lock = multiprocessing.Lock()
+		elif self._parallel == 'threading':
+			self._lock = threading.Lock()
 
-		if result._parallel == 'multiprocessing':
-			result._lock = multiprocessing.Lock()
-		elif result._parallel == 'threading':
-			result._lock = threading.Lock()
+	# Support for pickling and deepcopy
+	def __getstate__(self):
+		state = self.__dict__.copy()
+		del state['_lock']
+		return state
 
-		return result
-
-	# Pooling
-	def __or__(self, other):
-		return deepcopy(self).__ior__(other)
+	def __setstate__(self, d):
+		self.__dict__ = d
+		self._init_lock()
 
 	# Concatenated streams (https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm)
 	def __ior__(self, other):
@@ -137,3 +112,6 @@ class RunningStats:
 			self._lock.release()
 
 		return self
+
+	def __or__(self, other):
+		return deepcopy(self).__ior__(other)
