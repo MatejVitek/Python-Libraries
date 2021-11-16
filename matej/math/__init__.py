@@ -88,11 +88,12 @@ class RunningStats:
 	# Support for pickling and deepcopy
 	def __getstate__(self):
 		state = self.__dict__.copy()
-		del state['_lock']
+		if '_lock' in state:
+			del state['_lock']
 		return state
 
-	def __setstate__(self, d):
-		self.__dict__ = d
+	def __setstate__(self, state):
+		self.__dict__ = state
 		self._init_lock()
 
 	# Concatenated streams (https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm)
