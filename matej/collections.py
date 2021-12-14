@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
+import itertools as it
 from functools import partial, reduce
 import operator as op
 import random
@@ -76,6 +77,19 @@ class DotDict(dict):
 
 # Recursive defaultdict
 treedict = lambda: defaultdict(treedict)
+
+
+def dict_product(d):
+	"""
+	Cartesian product of all possible values for the corresponding keys.
+
+	Example::
+
+		>>> list(dict_product({'a': [1, 2], 'b': [3, 4]}))
+		[{'a': 1, 'b': 3}, {'a': 1, 'b': 4}, {'a': 2, 'b': 3}, {'a': 2, 'b': 4}]
+	"""
+	for x in it.product(*d.values()):
+		yield dzip(d, x)
 
 
 def dmap(*args, **kw):
