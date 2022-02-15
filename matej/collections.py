@@ -75,8 +75,9 @@ class DotDict(dict):
 	__setattr__ = dict.__setitem__
 
 
-# Recursive defaultdict
-treedict = lambda: defaultdict(treedict)
+# Recursive defaultdict (we use a proper function instead of a lambda so that treedict objects are picklable)
+def treedict():
+	return defaultdict(treedict)
 
 
 def dict_product(d):
