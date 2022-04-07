@@ -2,6 +2,8 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, EnumMeta
 from functools import lru_cache, total_ordering
 
+from .collections import lmap
+
 
 # Ordered Enums courtesy of https://blog.yossarian.net/2020/03/02/Totally-ordered-enums-in-python-with-ordered_enum
 @total_ordering
@@ -27,102 +29,277 @@ class ValueOrderedEnum(Enum):
 
 
 class AbstractEnumMeta(EnumMeta, ABCMeta):
-	pass
+	""" Metaclass for abstract Enum classes (using decorators from `abc`)
 
-
-class Lazy:
-	""" Member wrapper for use with the :class:`SometimesLazyEnum` class from this module. """
-	def __init__(self, *lazy_init_args):
-		self.args = lazy_init_args
-
-
-class SometimesLazyEnum(Enum, metaclass=AbstractEnumMeta):
+	Usage:
+	>>> class MyEnum(Enum, metaclass=AbstractEnumMeta):
+	... 	# This method must be overridden in subclasses
+	... 	@abstractmethod
+	... 	def my_method(self):
+	... 		pass
+	...
 	"""
-	An :class:`Enum` subclass that allows lazy evaluation only for selected members.
 
-	This class functions like a standard :class:`Enum` but will only evaluate the value of the members
-	wrapped in :class:`Lazy` upon first access of their `value` attribute. For detailed usage instructions
-	refer to the documentation of the original :class:`Enum` class.
 
-	Subclasses must implement the :meth:`_lazy_init` method, which computes the actual value from the arguments
-	passed at the `Enum` creation.
-
-	Sample usage::
-
-		class MyEnum(SometimesLazyEnum):
-			X = Lazy('x')
-			Y = Lazy('y')
-			Z = 'z'
-
-			@classmethod
-			def _lazy_init(cls, value):
-				print(f"Lazy init of {value}")
-				return value * 2
-
-		>>> MyEnum.Z
-		MyEnum.Z
-		>>> MyEnum.Z.value
-		'z'
-		>>> MyEnum.X
-		MyEnum.X
-		>>> MyEnum.X.value
-		Lazy init of x
-		'xx'
-		>>> MyEnum.X.value
-		'xx'
+class DirectEnumMeta(EnumMeta):
+	""" Metaclass for Enum classes that allow direct access to the member values as the members themselves, such as:
+	>>> class MyEnum(Enum, metaclass=DirectEnumMeta):
+	... 	X = 1
+	...
+	>>> MyEnum.X
+	1
 	"""
+
+	def __getattribute__(cls, name):
+		result = super().__getattribute__(name)
+		if isinstance(result, cls):
+			result = result.value
+		return result
+
+
+class AbstractDirectEnumMeta(AbstractEnumMeta):
+	""" Metaclass that combines the functionalities of `AbstractEnumMeta` and `DirectEnumMeta`.
+
+	This class does not allow member names to start with an underscore (_).
+
+	Usage:
+	>>> class MyEnum(Enum, metaclass=AbstractDirectEnumMeta):
+	... 	...
+	...
+	"""
+
+	def __getattribute__(cls, name):
+		result = super().__getattribute__(name)
+		if not name.startswith('_') and isinstance(result, cls):
+			result = result.value
+		return result
+
+
+class LazyEnum(Enum, metaclass=AbstractEnumMeta):
+	""" An abstract subclass of `Enum` that supports lazy evaluation of the members' values and attributes.
+
+	Subclasses must implement the `_lazy_init` method, which takes the arguments from
+	the member's definition and returns the actual value (such as reading an image from a path).
+	It can also initialise other attributes of the member. The names of these attributes shouldn't start
+	with underscores (`_`).
+
+	When reimplementing `__init__` in a subclass, call `super().__init__` with the arguments
+	you wish to use for `_lazy_init`. By default all the arguments are passed. If your `__init__`
+	passes no arguments to `super().__init__`, lazy initialisation won't be used.
+	Note that lazy initialisation will only be triggered by references to either the `value` attribute
+	or attributes that weren't initialised in your `__init__` method.
+	See the `MixedEnum` class for an example that reimplements `__init__` to allow mixing
+	regular and lazy initialisation via the `Lazy` wrapper.
+
+	Usage:
+	>>> class MyLazyEnum(LazyEnum):
+	... 	X = 'x'
+	... 	Y = 'y'
+	...
+	... 	def _lazy_init(self, value):
+	... 		print(f"Lazy init of {value}")
+	... 		self.letter = value
+	... 		return value * 2
+	...
+	>>> MyLazyEnum.X
+	MyLazyEnum.X
+	>>> MyLazyEnum.X.letter
+	Lazy init of x
+	'x'
+	>>> MyLazyEnum.X.value
+	'xx'
+	>>> MyLazyEnum.X.letter
+	'x'
+	>>> MyLazyEnum.Y.value
+	Lazy init of y
+	'yy'
+	>>> MyLazyEnum.Y.value
+	'yy'
+	"""
+
+	def __init__(self, *args):
+		self._lazy_args = args
 
 	def __getattribute__(self, name):
-		result = super().__getattribute__(name)
-		if name == 'value' and isinstance(result, Lazy):
-			result = self._lazy_init(*result.args)
-			self._value_ = result  #pylint: disable=attribute-defined-outside-init  # Hacky solution but it works
-		return result
+		if name.startswith('_') or not self._lazy_args or (name != 'value' and name in self.__dict__):
+			return super().__getattribute__(name)
+		result = self._lazy_init(*self._lazy_args)
+		self._lazy_args = None
+		if result is not None:
+			self._value_ = result  #pylint: disable = attribute-defined-outside-init
+		return getattr(self, name)
+
+	@abstractmethod
+	def _lazy_init(self, *args):
+		pass
+
+
+class LazyDirectEnum(LazyEnum, metaclass=AbstractDirectEnumMeta):
+	""" An abstract `Enum` that supports lazy initialisation and also direct access to members' values.
+
+	Note that `_lazy_init` is a classmethod in this class, as the member itself will be replaced by
+	the value returned by `_lazy_init` at the end of its execution anyway.
+
+	Usage:
+	>>> class MyLazyDirectEnum(LazyDirectEnum):
+	... 	X = 'x'
+	... 	Y = 'y'
+	...
+	... 	@classmethod
+	... 	def _lazy_init(cls, value):
+	... 		print(f"Lazy init of {value}")
+	... 		return value * 2
+	...
+	>>> MyLazyDirectEnum
+	<enum 'MyLazyDirectEnum'>
+	>>> MyLazyDirectEnum.X
+	Lazy init of x
+	'xx'
+	>>> MyLazyDirectEnum.X
+	'xx'
+	>>> MyLazyDirectEnum.Y
+	Lazy init of y
+	'yy'
+	"""
 
 	@classmethod
 	@abstractmethod
 	def _lazy_init(cls, *args):
-		""" This method must be overridden to return the actual value of a member from the originally passed arguments. """
+		# Keep this method abstract
 		return args
 
 
-class LazyEnum(SometimesLazyEnum):  #pylint:disable=abstract-method
+class Lazy:
+	""" Member wrapper for use with the :class:`LazyEagerEnum` class from this module. """
+	def __init__(self, *lazy_init_arguments):
+		self.args = lazy_init_arguments
+
+	def __str__(self):
+		return f"Lazy({self.args[0] if len(self.args) == 1 else lmap(str, self.args)})"
+
+
+class LazyEagerEnum(LazyEnum):
 	"""
-	An :class:`Enum` subclass with lazy evaluation.
+	An abstract subclass of `LazyEnum` that supports mixing of regular `__init__` initialisation
+	with lazy initialisation of the value via the `Lazy` wrapper (see below for an example).
+	*Note that if several `Lazy`s appear in a single value, their argument lists will be concatenated.*
 
-	This class functions like a standard :class:`Enum` but will only evaluate the value of its members
-	upon first access of their `value` attribute. For detailed usage instructions refer to the documentation
-	of the original :class:`Enum` class.
+	When reimplementing `__init__` in a subclass, call this class' `__init__` to properly parse out
+	the `Lazy` arguments. After the call, the remaining arguments will be in `self.init_args`.
 
-	Subclasses must implement the :meth:`_lazy_init` method, which computes the actual value from the arguments
-	passed at the `Enum` creation.
-
-	Sample usage::
-
-		class MyEnum(LazyEnum):
-			X = 'x'
-			Y = 'y'
-			Z = 'z'
-
-			@classmethod
-			def _lazy_init(cls, value):
-				print(f"Lazy init of {value}")
-				return value * 2
-
-		>>> MyEnum.Z
-		MyEnum.Z
-		>>> MyEnum.Z.value
-		Lazy init of z
-		'z'
-		>>> MyEnum.X
-		MyEnum.X
-		>>> MyEnum.X.value
-		Lazy init of x
-		'xx'
-		>>> MyEnum.X.value
-		'xx'
+	Usage:
+	>>> class MyMixedEnum(LazyEagerEnum):
+	... 	X = Lazy(1)
+	... 	Y = 'y', Lazy(2), 'w', Lazy(3, 4)  # Only values in Lazy will be passed to _lazy_init
+	... 	Z = 'z', 'a'  # Since there are no Lazy values, lazy initialisation won't be used
+	...
+	... 	def __init__(self, *args):
+	... 		super().__init__(*args)
+	... 		self.letters = ','.join(self.init_args)
+	...
+	... 	def _lazy_init(self, *numbers):
+	... 		print("Lazy init called")
+	... 		self.numbers = list(numbers)
+	... 		return sum(numbers)
+	...
+	>>> MyMixedEnum.X
+	MyMixedEnum.X
+	>>> MyMixedEnum.X.letters
+	''
+	>>> MyMixedEnum.X.numbers
+	Lazy init called
+	[1]
+	>>> MyMixedEnum.X.value
+	1
+	>>> MyMixedEnum.X.numbers
+	[1]
+	>>> MyMixedEnum.Y.letters
+	'y,w'
+	>>> MyMixedEnum.Y.value
+	Lazy init called
+	9
+	>>> MyMixedEnum.Y.numbers
+	[2, 3, 4]
+	>>> MyMixedEnum.Z.letters
+	'z,a'
+	>>> MyMixedEnum.Z.value
+	('z', 'a')
+	>>> MyMixedEnum.Z.numbers  # Lazy initialisation wasn't used so this raises an error
+	AttributeError: 'MyMixedEnum' object has no attribute 'numbers'
 	"""
 
 	def __init__(self, *args):
-		super().__init__()
-		self._value_ = Lazy(*args)
+		# If we wanted to actually remove the lazy arguments from the __init__ call (so that we wouldn't need self.init_args),
+		# we'd need to override __call__ in the metaclass. Since this is a horrid idea for Enums, we use this solution instead.
+		super().__init__(*sum((arg.args for arg in args if isinstance(arg, Lazy)), ()))
+		self.init_args = tuple(arg for arg in args if not isinstance(arg, Lazy))
+
+	@abstractmethod
+	def _lazy_init(self, *args):
+		# This method remains abstract
+		pass
+
+
+if __name__ == '__main__':
+	class MyLazyEnum(LazyEnum):
+		X = 'x'
+		Y = 'y'
+
+		def _lazy_init(self, value):
+			print(f"Lazy init of {value}")
+			self.letter = value
+			return value * 2
+
+	print(MyLazyEnum.X)
+	print(MyLazyEnum.X.letter)
+	print(MyLazyEnum.X.value)
+	print(MyLazyEnum.X.letter)
+	print(MyLazyEnum.Y.value)
+	print(MyLazyEnum.Y.value)
+	print(MyLazyEnum.Y.name)
+
+
+	class MyLazyDirectEnum(LazyDirectEnum):
+		X = 'x'
+		Y = 'y'
+
+		@classmethod
+		def _lazy_init(cls, value):
+			print(f"Lazy init of {value}")
+			return value * 2
+
+	print(MyLazyDirectEnum)
+	print(MyLazyDirectEnum.X)
+	print(MyLazyDirectEnum.X)
+	print(MyLazyDirectEnum.Y)
+
+
+	class MyMixedEnum(LazyEagerEnum):
+		X = Lazy(1)
+		Y = 'y', Lazy(2), 'w', Lazy(3, 4)  # Since mixed=True, only values in Lazy will be passed to _lazy_init
+		Z = 'z', 'a'
+
+		def __init__(self, *args):
+			super().__init__(*args)
+			self.letters = ','.join(self.init_args)
+
+		def _lazy_init(self, *numbers):
+			print("Lazy init called")
+			self.numbers = list(numbers)
+			return sum(numbers)
+
+
+	print(MyMixedEnum.X)
+	print(MyMixedEnum.X.letters)
+	print(MyMixedEnum.X.numbers)
+	print(MyMixedEnum.X.value)
+	print(MyMixedEnum.X.numbers)
+	print(MyMixedEnum.Y.letters)
+	print(MyMixedEnum.Y.value)
+	print(MyMixedEnum.Y.numbers)
+	print(MyMixedEnum.Z.letters)
+	print(MyMixedEnum.Z.value)
+	try:
+		MyMixedEnum.Z.numbers
+	except AttributeError:
+		print("This one raises an error since lazy initialisation wasn't used")
