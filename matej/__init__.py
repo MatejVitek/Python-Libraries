@@ -27,7 +27,7 @@ class Singleton(type):
 		return cls._instances[cls]
 
 # class SampleSingleton(metaclass=Singleton):
-#	 pass
+# 	pass
 
 
 class _Zero(metaclass=Singleton):
@@ -113,30 +113,20 @@ class StoreDictPairs(argparse.Action):
 
 
 class Config(types.SimpleNamespace):
-	def __add__(self, other):
-		if isinstance(other, dict):
-			return Config(**{**self.__dict__, **other})
-		if isinstance(other, types.SimpleNamespace):
-			return Config(**{**self.__dict__, **other.__dict__})
-		raise TypeError(f"Addition not supported for types '{type(self)}' and '{type(other)}'.")
+	def __or__(self, other):
+		try:
+			return type(self)(**(self.__dict__ | other))
+		except TypeError as e:
+			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
 
-	# This is implemented to support sum builtin
-	def __radd__(self, other):
-		if other == 0:
-			return self
-		if isinstance(other, dict):
-			return Config(**{**other, **self.__dict__})
-		if isinstance(other, types.SimpleNamespace):
-			return Config(**{**other.__dict__, **self.__dict__})
-		raise TypeError(f"Addition not supported for types '{type(self)}' and '{type(other)}'.")
+	def __ror__(self, other):
+		try:
+			return type(self)(**(other | self.__dict__))
+		except TypeError as e:
+			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
 
-	def __iadd__(self, other):
-		if isinstance(other, dict):
-			self.__dict__.update(**other)
-		elif isinstance(other, types.SimpleNamespace):
-			self.__dict__.update(**other.__dict__)
-		else:
-			raise TypeError(f"Addition not supported for types '{type(self)}' and '{type(other)}'.")
+	def __ior__(self, other):
+		self.__dict__.update(**other)
 		return self
 
 	def __getitem__(self, key):
@@ -150,21 +140,13 @@ class Config(types.SimpleNamespace):
 
 	def __contains__(self, item):
 		return item in self.__dict__
-	
+
 	# Support **unpacking
 	def keys(self):
 		return self.__dict__.keys()
 
 	def copy(self):
-		return Config(**self.__dict__)
-
-
-# Call as make_module_callable(__name__, function_to_call) at the end of the module definition
-def make_module_callable(module_name, f):
-	class _CallableModule(types.ModuleType):
-		def __call__(self, *args, **kw):
-			return f(*args, **kw)
-	sys.modules[module_name].__class__ = _CallableModule
+		return type(self)(**self.__dict__)
 
 
 # Class adapted from https://github.com/ndrplz/google-drive-downloader/blob/master/google_drive_downloader/google_drive_downloader.py
@@ -204,3 +186,11 @@ class GoogleDriveDownloader:
 			for chunk in response.iter_content(GoogleDriveDownloader.CHUNK_SIZE):
 				if chunk:  # filter out keep-alive new chunks
 					f.write(chunk)
+
+
+# Call as make_module_callable(__name__, function_to_call) at the end of the module definition
+def make_module_callable(module_name, f):
+	class _CallableModule(types.ModuleType):
+		def __call__(self, *args, **kw):
+			return f(*args, **kw)
+	sys.modules[module_name].__class__ = _CallableModule
