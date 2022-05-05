@@ -2,6 +2,8 @@ import argparse
 from ast import literal_eval
 from contextlib import contextmanager
 import os
+from pathlib import Path
+import requests
 import sys
 import types
 
@@ -25,7 +27,7 @@ class Singleton(type):
 		return cls._instances[cls]
 
 # class SampleSingleton(metaclass=Singleton):
-#     pass
+#	 pass
 
 
 class _Zero(metaclass=Singleton):
@@ -164,3 +166,41 @@ def make_module_callable(module_name, f):
 			return f(*args, **kw)
 	sys.modules[module_name].__class__ = _CallableModule
 
+
+# Class adapted from https://github.com/ndrplz/google-drive-downloader/blob/master/google_drive_downloader/google_drive_downloader.py
+class GoogleDriveDownloader:
+	CHUNK_SIZE = 32768
+	DOWNLOAD_URL = 'https://docs.google.com/uc?export=download'
+
+	@staticmethod
+	def download_file_from_google_drive(file_id, dest_path):
+		dest_path = Path(dest_path)
+		dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+		session = requests.Session()
+
+		print('Downloading {} into {}... '.format(file_id, dest_path), end='', flush=True)
+
+		response = session.get(GoogleDriveDownloader.DOWNLOAD_URL, params={'id': file_id}, stream=True)
+
+		token = GoogleDriveDownloader._get_confirm_token(response)
+		if token:
+			params = {'id': file_id, 'confirm': token}
+			response = session.get(GoogleDriveDownloader.DOWNLOAD_URL, params=params, stream=True)
+
+		GoogleDriveDownloader._save_response_content(response, dest_path)
+		print('Done.')
+
+	@staticmethod
+	def _get_confirm_token(response):
+		for key, value in response.cookies.items():
+			if key.startswith('download_warning'):
+				return value
+		return None
+
+	@staticmethod
+	def _save_response_content(response, destination):
+		with open(destination, 'wb') as f:
+			for chunk in response.iter_content(GoogleDriveDownloader.CHUNK_SIZE):
+				if chunk:  # filter out keep-alive new chunks
+					f.write(chunk)
