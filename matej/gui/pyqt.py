@@ -19,6 +19,74 @@ from matej.collections import lfilter
 from matej.enum import LazyDirectEnum
 
 
+def browse_file(parent=None, title=None, *, init=None, existing_only=False, multiple=False, ext_filters=None, init_filter=None, return_chosen_filter=False):
+	"""
+	Browse files on the filesystem.
+	
+	:param QWidget parent: Parent widget
+	:param str title: Title of the opened dialog
+	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
+	:type  init: str or pathlib.Path
+	:param bool existing_only: Only search for existing files (don't allow new ones)
+	:param bool multiple: Allow multiple files (only relevant in `existing_only=True` mode)
+	:param ext_filters: List of extension filters. If multiple filters are passed as a single string, they must be separated using `;;`.
+	                    For the specific syntax of the filters see the `QFileDialog` docs (e.g. https://doc.qt.io/qt-5/qfiledialog.html#getOpenFileName).
+	:type  ext_filters: str or Iterable
+	:param str init_filter: Initially selected filter
+	:param bool return_chosen_filter: Whether to return a tuple of the selected file and filter, rather than just the selected file.
+
+	:return: Selected file or None if dialog was cancelled. If `return_chosen_filter=True`, will also return selected extension filter.
+	:rtype:  Path or tuple
+	"""
+
+	init = _get_first_existing_parent(init)
+	if not isinstance(ext_filters, str):
+		ext_filters = ';;'.join(ext_filters)
+
+	if existing_only:
+		browse = QFileDialog.getOpenFileNames if multiple else QFileDialog.getOpenFileName
+	else:
+		browse = QFileDialog.getSaveFileName
+
+	f, chosen_filter = browse(parent, title, init, ext_filters, init_filter)
+	if f:
+		f = Path(f)
+
+	if return_chosen_filter:
+		return f, chosen_filter
+	return f
+
+
+def browse_dir(parent=None, title=None, *, init=None, show_files=False):
+	"""
+	Browse directories on the filesystem.
+	
+	:param QWidget parent: Parent widget
+	:param str title: Title of the opened dialog
+	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
+	:type  init: str or pathlib.Path
+	:param bool show_files: Show files in the dialog as well
+
+	:return: Selected directory or None if dialog was cancelled.
+	:rtype:  Path
+	"""
+
+	init = _get_first_existing_parent(init)
+	flags = 0 if show_files else QFileDialog.ShowDirsOnly
+
+	if (d := QFileDialog.getExistingDirectory(parent, title, init, flags)):
+		d = Path(d)
+	return d
+
+def _get_first_existing_parent(f_or_dir):
+	if not f_or_dir:
+		return str(Path())
+	d = Path(f_or_dir)
+	while not d.is_dir():
+		d = d.parent
+	return str(d)
+
+
 def set_lbl_number(lbl, x):
 	lbl.setText(np.format_float_positional(x, precision=3, trim='-'))
 
@@ -261,15 +329,6 @@ class SingletonGUIWidget(GUIWidget, metaclass=_AbstractSingletonWidgetMeta):
 	def _init_ui(self, *args, **kw):
 		# Keep this method abstract
 		pass
-
-
-def browse(parent, line_edit):
-	init_dir = line_edit.text()
-	while not os.path.exists(init_dir):
-		init_dir = os.path.dirname(init_dir)
-	f, _ = QFileDialog.getOpenFileName(parent, "Pretrained Model", init_dir, 'Pretrained Models (*.pth)')
-	if f:
-		line_edit.setText(f)
 
 
 class ImageButton(QPushButton):
