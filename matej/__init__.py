@@ -214,14 +214,14 @@ class Config(types.SimpleNamespace):
 		# Write out the leaves first
 		if leaves:
 			for key, value in leaves:
-				print(f"{indent}{cls._a2k(key)} = {value}", file=f)
+				print(f"{indent}{cls.variable_to_name(key)} = {value}", file=f)
 			if sections:  # Empty new line to end the section except at the end of the file
 				print(file=f)
 
 		# Write sections recursively
 		if sections:
 			for section_name, section in sections:
-				section_name = cls._a2k(section_name)
+				section_name = cls.variable_to_name(section_name)
 				if header:
 					section_name = f"{header}.{section_name}"
 				print(f"{indent}[{section_name}]", file=f)
@@ -245,7 +245,7 @@ class Config(types.SimpleNamespace):
 
 		# Read sections
 		for section in parser.sections():
-			subsection_split = cls._k2a(section).split('.')
+			subsection_split = cls.name_to_variable(section).split('.')
 			curr_cfg = cfg
 			# Create subsection (and its parents if necessary) in the Config if it doesn't exist
 			for section_name in subsection_split:
@@ -260,19 +260,19 @@ class Config(types.SimpleNamespace):
 	def _read_section(cls, cfg, section):
 		for key, value in section.items():
 			try:
-				cfg[cls._k2a(key)] = literal_eval(value)
+				cfg[cls.name_to_variable(key)] = literal_eval(value)
 			except (ValueError, SyntaxError):
-				cfg[cls._k2a(key)] = value
+				cfg[cls.name_to_variable(key)] = value
 
 	_replace_dict = {' ': '_', '_': '__', '-': '___'}
 	# Translate INI section header or key to Config attribute name
 	@classmethod
-	def _k2a(cls, key):
+	def str2var(cls, key):
 		return multi_replace(key, cls._replace_dict).lower()
 
 	# Translate Config attribute name to INI section header or key
 	@classmethod
-	def _a2k(cls, attr):
+	def var2str(cls, attr):
 		return multi_replace(attr, {v: k for k, v in cls._replace_dict.items()}).title()
 
 
