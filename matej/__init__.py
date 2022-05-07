@@ -1,11 +1,16 @@
 import argparse
 from ast import literal_eval
+from collections.abc import Mapping
+from configparser import ConfigParser
 from contextlib import contextmanager
+import itertools as it
 import os
 from pathlib import Path
 import requests
 import sys
 import types
+
+from .string import multi_replace
 
 
 @contextmanager
@@ -113,40 +118,162 @@ class StoreDictPairs(argparse.Action):
 
 
 class Config(types.SimpleNamespace):
+	def __init__(self, d=None, /, **kw):
+		# Initialisation can be done with a single (possibly nested) dict or with **kw
+		if d:
+			kw = d | kw  # In case of key clashes, values from **kw prevail
+		super().__init__(**kw)
+
+		# Nested initialisation
+		for key, value in self.items():
+			if isinstance(value, Mapping):
+				self[key] = type(self)(value)
+
+	# Support union/update dict-like operations
 	def __or__(self, other):
 		try:
-			return type(self)(**(self.__dict__ | other))
+			return type(self)(self.__dict__ | other)
 		except TypeError as e:
 			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
 
 	def __ror__(self, other):
 		try:
-			return type(self)(**(other | self.__dict__))
+			return type(self)(other | self.__dict__)
 		except TypeError as e:
 			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
 
 	def __ior__(self, other):
-		self.__dict__.update(**other)
+		self.update(other)
 		return self
 
+	def update(self, other, **kw):
+		try:
+			other |= kw
+			for key, value in other.items():
+				if isinstance(value, Mapping):
+					other[key] = type(self)(value)
+			self.__dict__ |= other
+		except TypeError as e:
+			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
+
+	# Support dict-style attribute getting
 	def __getitem__(self, key):
 		return self.__dict__[key]
 
+	# Support dict-style (possibly nested) attribute setting
 	def __setitem__(self, key, value):
+		if isinstance(value, Mapping):
+			value = type(self)(value)
 		self.__dict__[key] = value
 
+	# Support dict-style attribute deleting
 	def __delitem__(self, key):
 		del self.__dict__[key]
 
+	# Support nested attribute setting
+	def __setattr__(self, key, value):
+		if isinstance(value, Mapping):
+			return super().__setattr__(key, type(self)(value))
+		return super().__setattr__(key, value)
+
+	# Support `in` checks
 	def __contains__(self, item):
 		return item in self.__dict__
 
-	# Support **unpacking
+	# Support **unpacking and dict-like iteration
 	def keys(self):
 		return self.__dict__.keys()
 
+	def values(self):
+		return self.__dict__.values()
+
+	def items(self):
+		return self.__dict__.items()
+
+	# Support copying
 	def copy(self):
-		return type(self)(**self.__dict__)
+		return type(self)(self.__dict__)
+
+	# Support INI writing and reading. In these methods the leaves of the Config are considered
+	# to be the keys and values. Non-leaf nodes are the (possibly nested) sections.
+	def write_ini(self, ini_file):
+		# If path-like object is passed, open it and pass the file object instead
+		if isinstance(ini_file, (str, os.PathLike)):
+			with open(ini_file, 'w', encoding='utf-8') as f:
+				self.write_ini(f)
+		# When the file object is passed, write the Config to it
+		else:
+			self._write_ini(self, ini_file)
+
+	@classmethod
+	def _write_ini(cls, cfg, f, header=''):
+		indent = "\t" * (header.count('.') + 1 if header else 0)
+		leaves = [(k, v) for k, v in cfg.items() if not isinstance(v, Config)]
+		sections = [(k, v) for k, v in cfg.items() if isinstance(v, Config)]
+
+		# Write out the leaves first
+		if leaves:
+			for key, value in leaves:
+				print(f"{indent}{cls._a2k(key)} = {value}", file=f)
+			if sections:  # Empty new line to end the section except at the end of the file
+				print(file=f)
+
+		# Write sections recursively
+		if sections:
+			for section_name, section in sections:
+				section_name = cls._a2k(section_name)
+				if header:
+					section_name = f"{header}.{section_name}"
+				print(f"{indent}[{section_name}]", file=f)
+				cls._write_ini(section, f, section_name)
+
+	@classmethod
+	def from_ini(cls, ini_file):
+		# If path-like object is passed, open it and pass the file object instead
+		if isinstance(ini_file, (str, os.PathLike)):
+			with open(ini_file, 'r', encoding='utf-8') as f:
+				return cls.from_ini(f)
+
+		# When the file object is passed, read the Config from it
+		cfg = cls()
+		parser = ConfigParser()
+		parser.read_file(it.chain(('[__dummy]',), ini_file))  # Prepend a dummy header in case of sectionless items
+
+		# Read sectionless items
+		cls._read_section(cfg, parser['__dummy'])
+		del parser['__dummy']
+
+		# Read sections
+		for section in parser.sections():
+			subsection_split = cls._k2a(section).split('.')
+			curr_cfg = cfg
+			# Create subsection (and its parents if necessary) in the Config if it doesn't exist
+			for section_name in subsection_split:
+				if section_name not in curr_cfg:
+					curr_cfg[section_name] = cls()
+				curr_cfg = curr_cfg[section_name]
+			cls._read_section(curr_cfg, parser[section])
+		
+		return cfg
+			
+	@classmethod
+	def _read_section(cls, cfg, section):
+		for key, value in section.items():
+			try:
+				cfg[cls._k2a(key)] = literal_eval(value)
+			except (ValueError, SyntaxError):
+				cfg[cls._k2a(key)] = value
+
+	_replace_dict = {' ': '_', '_': '__', '-': '___'}
+	# Translate INI section header or key to Config attribute name
+	@classmethod
+	def _k2a(cls, key):
+		return multi_replace(key, cls._replace_dict).lower()
+
+	# Translate Config attribute name to INI section header or key
+	@classmethod
+	def _a2k(cls, attr):
+		return multi_replace(attr, {v: k for k, v in cls._replace_dict.items()}).title()
 
 
 # Class adapted from https://github.com/ndrplz/google-drive-downloader/blob/master/google_drive_downloader/google_drive_downloader.py
