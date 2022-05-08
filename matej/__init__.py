@@ -1,8 +1,10 @@
 import argparse
 from ast import literal_eval
+from audioop import reverse
 from collections.abc import Mapping
 from configparser import ConfigParser
 from contextlib import contextmanager
+from copy import deepcopy
 import itertools as it
 import os
 from pathlib import Path
@@ -129,30 +131,36 @@ class Config(types.SimpleNamespace):
 			if isinstance(value, Mapping):
 				self[key] = type(self)(value)
 
-	# Support union/update dict-like operations
+	# Support union/update dict-like operations with recursive merging
 	def __or__(self, other):
-		try:
-			return type(self)(self.__dict__ | other)
-		except TypeError as e:
-			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
+		result = deepcopy(self)
+		result |= other
+		return result
 
 	def __ror__(self, other):
-		try:
-			return type(self)(other | self.__dict__)
-		except TypeError as e:
-			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
+		result = deepcopy(type(self)(other))
+		result |= self
+		return result
 
 	def __ior__(self, other):
 		self.update(other)
 		return self
 
 	def update(self, other, **kw):
-		try:
+		# In case of key clashes **kw values prevail over the ones in other
+		if kw:
+			other = deepcopy(other)
 			other |= kw
-			for key, value in other.items():
-				if isinstance(value, Mapping):
-					other[key] = type(self)(value)
-			self.__dict__ |= other
+		try:
+			for key in other:
+				# Turn any nested dictionaries into Configs
+				if isinstance(other[key], Mapping):
+					other[key] = type(self)(other[key])
+				# Recursive merging
+				if key in self and isinstance(self[key], Config) and isinstance(other[key], Config):
+					self[key] |= other[key]
+				else:
+					self[key] = other[key]
 		except TypeError as e:
 			raise TypeError(str(e).replace('dict', type(self).__name__)) from e
 
@@ -180,6 +188,15 @@ class Config(types.SimpleNamespace):
 	def __contains__(self, item):
 		return item in self.__dict__
 
+	# Override __repr__ to replace inner Configs with section headers
+	def __repr__(self):
+		kv_reprs = [
+			f"{key}:{repr(value).replace(type(value).__name__, '')}" if isinstance(value, Config)
+			else f"{key}={repr(value)}"
+			for key, value in self.items()
+		]
+		return f"{type(self).__name__}{{{', '.join(kv_reprs)}}}"
+		
 	# Support **unpacking and dict-like iteration
 	def keys(self):
 		return self.__dict__.keys()
@@ -190,7 +207,11 @@ class Config(types.SimpleNamespace):
 	def items(self):
 		return self.__dict__.items()
 
-	# Support copying
+	def __iter__(self):
+		return iter(self.__dict__)
+
+	# Support shallow copying directly (like a dict does)
+	# For deep copying and pickling use copy.deepcopy and pickle instead
 	def copy(self):
 		return type(self)(self.__dict__)
 
@@ -214,14 +235,14 @@ class Config(types.SimpleNamespace):
 		# Write out the leaves first
 		if leaves:
 			for key, value in leaves:
-				print(f"{indent}{cls.variable_to_name(key)} = {value}", file=f)
+				print(f"{indent}{cls.var2str(key)} = {value}", file=f)
 			if sections:  # Empty new line to end the section except at the end of the file
 				print(file=f)
 
 		# Write sections recursively
 		if sections:
 			for section_name, section in sections:
-				section_name = cls.variable_to_name(section_name)
+				section_name = cls.var2str(section_name)
 				if header:
 					section_name = f"{header}.{section_name}"
 				print(f"{indent}[{section_name}]", file=f)
@@ -245,7 +266,7 @@ class Config(types.SimpleNamespace):
 
 		# Read sections
 		for section in parser.sections():
-			subsection_split = cls.name_to_variable(section).split('.')
+			subsection_split = cls.str2var(section).split('.')
 			curr_cfg = cfg
 			# Create subsection (and its parents if necessary) in the Config if it doesn't exist
 			for section_name in subsection_split:
@@ -260,9 +281,9 @@ class Config(types.SimpleNamespace):
 	def _read_section(cls, cfg, section):
 		for key, value in section.items():
 			try:
-				cfg[cls.name_to_variable(key)] = literal_eval(value)
+				cfg[cls.str2var(key)] = literal_eval(value)
 			except (ValueError, SyntaxError):
-				cfg[cls.name_to_variable(key)] = value
+				cfg[cls.str2var(key)] = value
 
 	_replace_dict = {' ': '_', '_': '__', '-': '___'}
 	# Translate INI section header or key to Config attribute name
@@ -321,3 +342,37 @@ def make_module_callable(module_name, f):
 		def __call__(self, *args, **kw):
 			return f(*args, **kw)
 	sys.modules[module_name].__class__ = _CallableModule
+
+
+if __name__ == '__main__':
+	c1 = Config({
+		'a': 3,
+		'b': {
+			'c': (4, 5, 6),
+			'd': [7, 8, 9],
+			'e': {
+				'f': 'asdf',
+				'g': 10.11
+			}
+		},
+		'h': 12
+	})
+	c2 = Config({
+		'a': 13,
+		'b': {
+			'c': 14.15,
+			'd': [16, 17],
+			'e': 18,
+			'f': 19,
+			'g': 'fdsa'
+		}
+	})
+	c3 = deepcopy(c1)
+	c4 = deepcopy(c1)
+	c5 = deepcopy(c2)
+	c6 = deepcopy(c2)
+	c3 |= c2
+	c4.update(c2, b=20)
+	c5 |= c1
+	c6.update(c1, h={'i': 21, 'j': 22})
+	print(c1, c2, c1 | c2, c2 | c1, c3, c4, c5, c6, sep="\n")
