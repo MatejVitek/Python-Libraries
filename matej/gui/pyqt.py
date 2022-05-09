@@ -414,6 +414,65 @@ class ImageRadioButton(ImageButton):
 		self.setAutoExclusive(True)
 
 
+class ColourPicker(GUIWidget):
+	def _init_ui(self, *args, **kw):
+		self.setLayout(QHBoxLayout())
+
+		self.button = ColourPickerButton(*args, **kw)
+		self.addWidget(self.button)
+
+		self.label = QWidget()
+		self.label.setFixedSize(self.button.size())
+		self._set_lbl_colour(self.button.colour)
+		self.addWidget(self.label)
+
+	def _connect_signals(self):
+		self.button.colour_changed.connect(self._set_lbl_colour)
+
+	@pyqtSlot(QColor)
+	def _set_lbl_colour(self, colour):
+		set_background_colour(self.label, colour)
+
+
+class ColourPickerButton(ImageButton):
+	colour_changed = pyqtSignal(QColor)
+
+	def __init__(self, init_colour=None, dialog_title="Pick Colour", force_alpha=False):
+		super().__init__()
+		if init_colour is None:
+			init_colour = Qt.White
+		self._title = dialog_title
+		self._alpha = force_alpha
+
+		if isinstance(init_colour, QColor):
+			self._colour = init_colour
+			self._alpha |= init_colour.alpha() != 255
+		else:
+			self._colour = QColor(*init_colour)
+			self._alpha |= len(init_colour) == 4
+
+		self.clicked.connect(self._dialog)
+
+	@property
+	def colour(self):
+		return self._colour
+
+	@colour.setter
+	def colour(self, new_colour):
+		if not isinstance(new_colour, QColor):
+			new_colour = QColor(*new_colour)
+
+		if new_colour != self._colour:
+			self._colour = new_colour
+			self.colour_changed.emit(self._colour)
+
+	def _dialog(self):
+		flags = QColorDialog.ShowAlphaChannel if self._alpha else 0
+		colour = QColorDialog.getColor(self.colour, self, self._title, flags)
+		if colour.isValid():
+			self.colour = colour
+
+
 class MultiplierSlider(QSlider):
 	valueChanged = pyqtSignal(float)
 
