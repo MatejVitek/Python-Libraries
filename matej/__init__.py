@@ -282,9 +282,19 @@ class Config(types.SimpleNamespace):
 	def _read_section(cls, cfg, section):
 		for key, value in section.items():
 			try:
-				cfg[cls.str2var(key)] = literal_eval(value)
+				value = literal_eval(value)
 			except (ValueError, SyntaxError):
-				cfg[cls.str2var(key)] = value
+				pass
+
+			# Handle Paths
+			if isinstance(value, str):
+				path = Path(value)
+				# A slightly more conservative way of detecting whether the string is meant to be a path
+				# It either needs to be an absolute path or it needs to exist and have at least one separator (\ or /)
+				if path.is_absolute() or path.exists() and len(path.parts) > 1:
+					value = path
+
+			cfg[cls.str2var(key)] = value
 
 	_replace_dict = {' ': '_', '_': '__', '-': '___'}
 	# Translate INI section header or key to Config attribute name
