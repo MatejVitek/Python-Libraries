@@ -196,7 +196,7 @@ class Config(types.SimpleNamespace):
 			for key, value in self.items()
 		]
 		return f"{type(self).__name__}{{{', '.join(kv_reprs)}}}"
-		
+
 	# Support **unpacking and dict-like iteration
 	def keys(self):
 		return self.__dict__.keys()
@@ -220,6 +220,7 @@ class Config(types.SimpleNamespace):
 	def write_ini(self, ini_file):
 		# If path-like object is passed, open it and pass the file object instead
 		if isinstance(ini_file, (str, os.PathLike)):
+			Path(ini_file).parent.mkdir(parents=True, exist_ok=True)
 			with open(ini_file, 'w', encoding='utf-8') as f:
 				self.write_ini(f)
 		# When the file object is passed, write the Config to it
@@ -274,9 +275,9 @@ class Config(types.SimpleNamespace):
 					curr_cfg[section_name] = cls()
 				curr_cfg = curr_cfg[section_name]
 			cls._read_section(curr_cfg, parser[section])
-		
+
 		return cfg
-			
+
 	@classmethod
 	def _read_section(cls, cfg, section):
 		for key, value in section.items():
