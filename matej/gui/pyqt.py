@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from inspect import signature
 import numpy as np
-import os
 from pathlib import Path
 import re
 
@@ -22,7 +21,7 @@ from matej.enum import LazyDirectEnum
 def browse_file(parent=None, title=None, *, init=None, existing_only=False, multiple=False, ext_filters=None, init_filter=None, return_chosen_filter=False):
 	"""
 	Browse files on the filesystem.
-	
+
 	:param QWidget parent: Parent widget
 	:param str title: Title of the opened dialog
 	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
@@ -60,7 +59,7 @@ def browse_file(parent=None, title=None, *, init=None, existing_only=False, mult
 def browse_dir(parent=None, title=None, *, init=None, show_files=False):
 	"""
 	Browse directories on the filesystem.
-	
+
 	:param QWidget parent: Parent widget
 	:param str title: Title of the opened dialog
 	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
@@ -72,7 +71,7 @@ def browse_dir(parent=None, title=None, *, init=None, show_files=False):
 	"""
 
 	init = _get_first_existing_parent(init)
-	flags = 0 if show_files else QFileDialog.ShowDirsOnly
+	flags = QFileDialog.Options() if show_files else QFileDialog.ShowDirsOnly
 
 	if (d := QFileDialog.getExistingDirectory(parent, title, init, flags)):
 		d = Path(d)
@@ -87,8 +86,8 @@ def _get_first_existing_parent(f_or_dir):
 	return str(d)
 
 
-def set_lbl_number(lbl, x):
-	lbl.setText(np.format_float_positional(x, precision=3, trim='-'))
+def set_label_number(label, x):
+	label.setText(np.format_float_positional(x, precision=3, trim='-'))
 
 
 def set_background_colour(widget, colour):
@@ -123,7 +122,7 @@ class GUIWidget(QWidget, metaclass=AbstractWidgetMeta):
 	""" Template class for GUI Widget initialisation.
 
 	This class canonicalises the initialisation of GUI Widgets into 5 steps:
-	
+
 	- a call to `__init__` of the superclass (the superclass is `QWidget` by default);
 	- `_init`, where you initialise the necessary fields and values for further methods;
 	- `_init_ui`, where you lay out and initialise the UI widgets. This method must be implemented in subclasses.
@@ -416,22 +415,27 @@ class ImageRadioButton(ImageButton):
 
 class ColourPicker(GUIWidget):
 	def _init_ui(self, *args, **kw):
-		self.setLayout(QHBoxLayout())
+		hbox = QHBoxLayout(self)
+		self.setSizePolicy(QSizePolicy())
 
 		self.button = ColourPickerButton(*args, **kw)
-		self.addWidget(self.button)
+		hbox.addWidget(self.button)
 
 		self.label = QWidget()
-		self.label.setFixedSize(self.button.size())
-		self._set_lbl_colour(self.button.colour)
-		self.addWidget(self.label)
+		self.label.setFixedSize(self.button.sizeHint())
+		self._set_label_colour(self.button.colour)
+		hbox.addWidget(self.label)
 
 	def _connect_signals(self):
-		self.button.colour_changed.connect(self._set_lbl_colour)
+		self.button.colour_changed.connect(self._set_label_colour)
 
 	@pyqtSlot(QColor)
-	def _set_lbl_colour(self, colour):
+	def _set_label_colour(self, colour):
 		set_background_colour(self.label, colour)
+
+	def sizeHint(self):
+		button_size = self.button.sizeHint()
+		return QSize(2 * button_size.width(), button_size.height())
 
 
 class ColourPickerButton(ImageButton):
@@ -453,6 +457,8 @@ class ColourPickerButton(ImageButton):
 
 		self.clicked.connect(self._dialog)
 
+		self.setSizePolicy(QSizePolicy())
+
 	@property
 	def colour(self):
 		return self._colour
@@ -467,7 +473,7 @@ class ColourPickerButton(ImageButton):
 			self.colour_changed.emit(self._colour)
 
 	def _dialog(self):
-		flags = QColorDialog.ShowAlphaChannel if self._alpha else 0
+		flags = QColorDialog.ShowAlphaChannel if self._alpha else QColorDialog.ColorDialogOptions()
 		colour = QColorDialog.getColor(self.colour, self, self._title, flags)
 		if colour.isValid():
 			self.colour = colour
