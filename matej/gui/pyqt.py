@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from inspect import signature
 import numpy as np
-import os
 from pathlib import Path
 import re
 
@@ -19,8 +18,76 @@ from matej.collections import lfilter
 from matej.enum import LazyDirectEnum
 
 
-def set_lbl_number(lbl, x):
-	lbl.setText(np.format_float_positional(x, precision=3, trim='-'))
+def browse_file(parent=None, title=None, *, init=None, existing_only=False, multiple=False, ext_filters=None, init_filter=None, return_chosen_filter=False):
+	"""
+	Browse files on the filesystem.
+
+	:param QWidget parent: Parent widget
+	:param str title: Title of the opened dialog
+	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
+	:type  init: str or pathlib.Path
+	:param bool existing_only: Only search for existing files (don't allow new ones)
+	:param bool multiple: Allow multiple files (only relevant in `existing_only=True` mode)
+	:param ext_filters: List of extension filters. If multiple filters are passed as a single string, they must be separated using `;;`.
+	                    For the specific syntax of the filters see the `QFileDialog` docs (e.g. https://doc.qt.io/qt-5/qfiledialog.html#getOpenFileName).
+	:type  ext_filters: str or Iterable
+	:param str init_filter: Initially selected filter
+	:param bool return_chosen_filter: Whether to return a tuple of the selected file and filter, rather than just the selected file.
+
+	:return: Selected file or None if dialog was cancelled. If `return_chosen_filter=True`, will also return selected extension filter.
+	:rtype:  Path or tuple
+	"""
+
+	init = _get_first_existing_parent(init)
+	if not isinstance(ext_filters, str):
+		ext_filters = ';;'.join(ext_filters)
+
+	if existing_only:
+		browse = QFileDialog.getOpenFileNames if multiple else QFileDialog.getOpenFileName
+	else:
+		browse = QFileDialog.getSaveFileName
+
+	f, chosen_filter = browse(parent, title, init, ext_filters, init_filter)
+	if f:
+		f = Path(f)
+
+	if return_chosen_filter:
+		return f, chosen_filter
+	return f
+
+
+def browse_dir(parent=None, title=None, *, init=None, show_files=False):
+	"""
+	Browse directories on the filesystem.
+
+	:param QWidget parent: Parent widget
+	:param str title: Title of the opened dialog
+	:param init: Initial directory to start in (if it doesn't exist or is a file, it will be resolved to the first existing parent directory)
+	:type  init: str or pathlib.Path
+	:param bool show_files: Show files in the dialog as well
+
+	:return: Selected directory or None if dialog was cancelled.
+	:rtype:  Path
+	"""
+
+	init = _get_first_existing_parent(init)
+	flags = QFileDialog.Options() if show_files else QFileDialog.ShowDirsOnly
+
+	if (d := QFileDialog.getExistingDirectory(parent, title, init, flags)):
+		d = Path(d)
+	return d
+
+def _get_first_existing_parent(f_or_dir):
+	if not f_or_dir:
+		return str(Path())
+	d = Path(f_or_dir)
+	while not d.is_dir():
+		d = d.parent
+	return str(d)
+
+
+def set_label_number(label, x):
+	label.setText(np.format_float_positional(x, precision=3, trim='-'))
 
 
 def set_background_colour(widget, colour):
@@ -55,7 +122,7 @@ class GUIWidget(QWidget, metaclass=AbstractWidgetMeta):
 	""" Template class for GUI Widget initialisation.
 
 	This class canonicalises the initialisation of GUI Widgets into 5 steps:
-	
+
 	- a call to `__init__` of the superclass (the superclass is `QWidget` by default);
 	- `_init`, where you initialise the necessary fields and values for further methods;
 	- `_init_ui`, where you lay out and initialise the UI widgets. This method must be implemented in subclasses.
@@ -263,15 +330,6 @@ class SingletonGUIWidget(GUIWidget, metaclass=_AbstractSingletonWidgetMeta):
 		pass
 
 
-def browse(parent, line_edit):
-	init_dir = line_edit.text()
-	while not os.path.exists(init_dir):
-		init_dir = os.path.dirname(init_dir)
-	f, _ = QFileDialog.getOpenFileName(parent, "Pretrained Model", init_dir, 'Pretrained Models (*.pth)')
-	if f:
-		line_edit.setText(f)
-
-
 class ImageButton(QPushButton):
 	def __init__(self, image=None, *args, **kw):
 		super().__init__(*args, **kw)
@@ -353,6 +411,72 @@ class ImageRadioButton(ImageButton):
 		super().__init__(*args, **kw)
 		self.setCheckable(True)
 		self.setAutoExclusive(True)
+
+
+class ColourPicker(GUIWidget):
+	def _init_ui(self, *args, **kw):
+		hbox = QHBoxLayout(self)
+		self.setSizePolicy(QSizePolicy())
+
+		self.button = ColourPickerButton(*args, **kw)
+		hbox.addWidget(self.button)
+
+		self.label = QWidget()
+		self.label.setFixedSize(self.button.sizeHint())
+		self._set_label_colour(self.button.colour)
+		hbox.addWidget(self.label)
+
+	def _connect_signals(self):
+		self.button.colour_changed.connect(self._set_label_colour)
+
+	@pyqtSlot(QColor)
+	def _set_label_colour(self, colour):
+		set_background_colour(self.label, colour)
+
+	def sizeHint(self):
+		button_size = self.button.sizeHint()
+		return QSize(2 * button_size.width(), button_size.height())
+
+
+class ColourPickerButton(ImageButton):
+	colour_changed = pyqtSignal(QColor)
+
+	def __init__(self, init_colour=None, dialog_title="Pick Colour", force_alpha=False):
+		super().__init__()
+		if init_colour is None:
+			init_colour = Qt.White
+		self._title = dialog_title
+		self._alpha = force_alpha
+
+		if isinstance(init_colour, QColor):
+			self._colour = init_colour
+			self._alpha |= init_colour.alpha() != 255
+		else:
+			self._colour = QColor(*init_colour)
+			self._alpha |= len(init_colour) == 4
+
+		self.clicked.connect(self._dialog)
+
+		self.setSizePolicy(QSizePolicy())
+
+	@property
+	def colour(self):
+		return self._colour
+
+	@colour.setter
+	def colour(self, new_colour):
+		if not isinstance(new_colour, QColor):
+			new_colour = QColor(*new_colour)
+
+		if new_colour != self._colour:
+			self._colour = new_colour
+			self.colour_changed.emit(self._colour)
+
+	def _dialog(self):
+		flags = QColorDialog.ShowAlphaChannel if self._alpha else QColorDialog.ColorDialogOptions()
+		colour = QColorDialog.getColor(self.colour, self, self._title, flags)
+		if colour.isValid():
+			self.colour = colour
 
 
 class MultiplierSlider(QSlider):
