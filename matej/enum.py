@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, EnumMeta
 from functools import lru_cache, total_ordering
 
-from .collections import lmap
+from matej.collections import lmap, sum_
 
 
 # Ordered Enums courtesy of https://blog.yossarian.net/2020/03/02/Totally-ordered-enums-in-python-with-ordered_enum
@@ -121,7 +121,7 @@ class LazyEnum(Enum, metaclass=AbstractEnumMeta):
 		self._lazy_args = args
 
 	def __getattribute__(self, name):
-		if name.startswith('_') or not self._lazy_args or (name != 'value' and name in self.__dict__):
+		if name.startswith('_') or self._lazy_args is None or (name != 'value' and name in self.__dict__):
 			return super().__getattribute__(name)
 		result = self._lazy_init(*self._lazy_args)
 		self._lazy_args = None
@@ -231,7 +231,12 @@ class LazyEagerEnum(LazyEnum):
 	def __init__(self, *args):
 		# If we wanted to actually remove the lazy arguments from the __init__ call (so that we wouldn't need self.init_args),
 		# we'd need to override __call__ in the metaclass. Since this is a horrid idea for Enums, we use this solution instead.
-		super().__init__(*sum((arg.args for arg in args if isinstance(arg, Lazy)), ()))
+		lazy_args = sum_(arg.args for arg in args if isinstance(arg, Lazy))
+		if lazy_args:
+			super().__init__(*lazy_args)
+		else:
+			# No Lazy arguments (we can't use super().__init__ here)
+			self._lazy_args = None
 		self.init_args = tuple(arg for arg in args if not isinstance(arg, Lazy))
 
 	@abstractmethod
@@ -302,4 +307,4 @@ if __name__ == '__main__':
 	try:
 		MyMixedEnum.Z.numbers
 	except AttributeError:
-		print("This one raises an error since lazy initialisation wasn't used")
+		print("This one correctly raises an error since lazy initialisation wasn't used")

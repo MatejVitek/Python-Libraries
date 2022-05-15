@@ -15,7 +15,8 @@ except ImportError:
 	from sip import wrappertype as pyqtWrapperType
 
 from matej import Singleton
-from matej.collections import LazyDirectEnum, lfilter
+from matej.collections import lfilter
+from matej.enum import LazyDirectEnum
 
 
 def set_lbl_number(lbl, x):

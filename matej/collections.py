@@ -1,17 +1,26 @@
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 import itertools as it
-from functools import partial, reduce
+from functools import reduce
 import operator as op
 import random
 
+from matej import ZERO, ONE
 
-# These will work without an explicit initial value, as is required for the built-in sum when not working with ints
-# However they will fail on an empty array if an initial value isn't given
-sum_ = partial(reduce, op.add)
-mul = partial(reduce, op.mul)
-union = partial(reduce, op.or_)
-intersection = partial(reduce, op.and_)
+
+_DEFAULT = object()
+def _reductify(f, default_init=ZERO):
+	def _reduce(iterable, init=default_init, value_if_empty=_DEFAULT):
+		if not iterable and value_if_empty is not _DEFAULT:
+			return value_if_empty
+		return reduce(f, iterable, init)
+	return _reduce
+# Sum-like methods for different operators that will work even without an explicit initial value
+# Can optionally specify a different value (such as None) to return if the iterable is empty
+sum_ = _reductify(op.add)
+mul = _reductify(op.mul, ONE)
+union = _reductify(op.or_)
+intersection = _reductify(op.and_, ONE)
 
 
 def ensure_iterable(x, process_single_string=False):
@@ -139,3 +148,20 @@ def szip(*args, **kw):
 
 def tzip(*args, **kw):
 	return tuple(zip(*args, **kw))
+
+
+if __name__ == '__main__':
+	print(sum_([1,2,3]))
+	print(sum_([1,2,3], init=5))
+	print(sum_([1,2,3], init=3, value_if_empty=None))
+	print(sum_([]))
+	print(sum_([], init=8))
+	print(sum_([], init=8, value_if_empty=12))
+	print(mul([1,2,3]))
+	print(mul([1,2,3], init=4))
+	print(mul([], init=4))
+	print(mul([], value_if_empty=6))
+	print(union([True, True, False]))
+	print(union([]))
+	print(intersection([True, True, False]))
+	print(intersection([]))
