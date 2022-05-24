@@ -40,7 +40,7 @@ def exists(key: Union[str, Path], value_name: Optional[str] = None) -> bool:
 	return False
 
 
-def get(key: Union[str, Path], value_name: str = '', return_type: bool = False) -> Union[Optional[Union[str, int]], Tuple[Optional[Union[str, int]], Optional[int]]]:
+def get_value(key: Union[str, Path], value_name: str = '', return_type: bool = False) -> Union[Optional[Union[str, int]], Tuple[Optional[Union[str, int]], Optional[int]]]:
 	"""
 	Gets the specified value from the specified key.
 
@@ -62,7 +62,7 @@ def get(key: Union[str, Path], value_name: str = '', return_type: bool = False) 
 	return (None, None) if return_type else None
 
 
-def set(key: Union[str, Path], value_name: str = '', value: Union[str, int] = '', value_type: Union[str, int] = 'REG_SZ', create_keys: Optional[bool] = None):
+def set_value(key: Union[str, Path], value_name: str = '', value: Union[str, int] = '', value_type: Union[str, int] = 'REG_SZ', create_keys: Optional[bool] = None):
 	"""
 	Sets the specified value at the specified key.
 
@@ -136,7 +136,7 @@ def delete_key(key: Union[str, Path], recursive: bool = False):
 	reg.DeleteKey(hive, str(path))
 
 
-def subkeys(key: Union[str, Path, int]) -> Iterator[str]:
+def subkeys(key: Union[str, Path]) -> Iterator[str]:
 	"""
 	Iterates over subkeys of a registry key.
 
