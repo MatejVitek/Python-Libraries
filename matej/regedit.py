@@ -62,7 +62,7 @@ def get(key: Union[str, Path], value_name: str = '', return_type: bool = False) 
 	return (None, None) if return_type else None
 
 
-def set_value(key: Union[str, Path], value_name: str = '', value: Union[str, int] = '', value_type: Union[str, int] = 'REG_SZ', create_keys: Optional[bool] = None):
+def set(key: Union[str, Path], value_name: str = '', value: Union[str, int] = '', value_type: Union[str, int] = 'REG_SZ', create_keys: Optional[bool] = None):
 	"""
 	Sets the specified value at the specified key.
 
