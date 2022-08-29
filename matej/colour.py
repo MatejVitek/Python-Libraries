@@ -28,3 +28,7 @@ def numeric_type(colour):
 	if all(0 <= c <= 1 for c in colour) and any(int(c) != c for c in colour):
 		return np.float32
 	return np.uint8
+
+
+def truncate_colourmap(cmap, start=0, end=1):
+	return lambda v: cmap(start + (end - start) * v)
