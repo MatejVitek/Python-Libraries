@@ -23,8 +23,8 @@ union = _reductify(op.or_)
 intersection = _reductify(op.and_, ONE)
 
 
-def ensure_iterable(x, process_single_string=False):
-	if isinstance(x, str) and process_single_string:
+def ensure_iterable(x, tuplify_single=None):
+	if tuplify_single is not None and isinstance(x, tuplify_single):
 		return x,
 	try:
 		iter(x)

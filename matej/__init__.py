@@ -1,15 +1,28 @@
-import argparse
+# Hack so I can import modules with the same name as mine (untested, because apparently now it works without this?)
+# import importlib
+# from pathlib import Path
+# import sys
+# _old_path = sys.path
+# _parent_dir = Path(__file__).parent.absolute()
+# for path in sys.path:
+# 	if str(_parent_dir) in path:
+# 		sys.path.remove(path)
+# for file in _parent_dir.rglob('*'):
+# 	if file.is_dir() and (file/'__init__.py').is_file() or file.suffix == '.py' and file.stem != '__init__':
+# 		try:
+# 			importlib.import_module(file.stem)
+# 		except ModuleNotFoundError:
+# 			pass
+# sys.path = _old_path
+
 from ast import literal_eval
-from audioop import reverse
 from collections.abc import Mapping
 from configparser import ConfigParser
 from contextlib import contextmanager
 from copy import deepcopy
 import itertools as it
 import os
-from pathlib import Path
 import requests
-import sys
 import types
 
 from .string import multi_replace
@@ -96,27 +109,6 @@ class _One(metaclass=Singleton):
 		return 1
 
 ONE = _One()
-
-
-class StoreDictPairs(argparse.Action):
-	def __call__(self, parser, namespace, values, option_string):
-		d = getattr(namespace, self.dest)
-		if d is None:
-			d = {}
-		unpacked = []
-		for value in values:
-			if '=' in value:
-				unpacked.extend(value.split('='))
-			else:
-				unpacked.append(value)
-		if len(unpacked) % 2 != 0:
-			raise ValueError("Each key should have a corresponding value")
-		for key, value in zip(unpacked[0::2], unpacked[1::2]):
-			try:
-				d[key] = literal_eval(value)
-			except ValueError:
-				d[key] = value
-		setattr(namespace, self.dest, d)  # necessary if new dictionary was created
 
 
 class Config(types.SimpleNamespace):
