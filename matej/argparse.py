@@ -8,6 +8,7 @@ from .collections import ensure_iterable
 
 # Auxiliary stuff
 #pylint: disable = redefined-builtin  # Disable this warning since argparse also redefines a bunch of builtins in its methods
+QUERY = object()  #TODO: Use this for the default parameter in add_argument to query the user for the argument's value if the argument is not provided. Can also add an optional query parameter that determines the query string (default should probably be dest.title().replace('_', ' '))
 
 
 class ArgParser(argparse.ArgumentParser):
@@ -74,6 +75,7 @@ class ArgParser(argparse.ArgumentParser):
 		group.add_argument(*map(no_f, long_flags), dest=dest, action='store_false', help=no_help, **kw)
 		return result
 
+	# TODO: Make it possible to pass the choice descriptions as values too?
 	def add_choice_arg(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
 		""" Add a choice argument to the parser.
 
