@@ -17,6 +17,12 @@ def dfactorial(n):
 	return reduce(op.mul, range(n, 2, -2), 1)
 
 
+_ORDINAL_SUFFIXES = {1: "st", 2: "nd", 3: "rd"}
+def ordinal(n):
+	suffix = "th" if 10 <= n % 100 <= 20 else _ORDINAL_SUFFIXES.get(n % 10, "th")
+	return str(n) + suffix
+
+
 class RunningStats:
 	def __init__(self, name="", init_values=None, ddof=0, parallel=None, max_cache_size=100):
 		self.name = name
