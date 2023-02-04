@@ -6,6 +6,69 @@ import numpy as np
 import operator as op
 import threading
 
+from .. import Singleton
+
+
+class _Zero(metaclass=Singleton):
+	def __add__(self, other):
+		return other
+
+	__radd__ = __add__
+
+	def __mul__(self, other):
+		return self
+
+	__rmul__ = __mul__
+
+	def __or__(self, other):
+		return other
+
+	__ror__ = __or__
+
+	def __and__(self, other):
+		return self
+
+	__rand__ = __and__
+
+	def __bool__(self):
+		return False
+
+	def __str__(self):
+		return "0"
+
+	def __index__(self):
+		return 0
+
+ZERO = _Zero()
+
+
+class _One(metaclass=Singleton):
+	def __mul__(self, other):
+		return other
+
+	__rmul__ = __mul__
+
+	def __or__(self, other):
+		return self
+
+	__ror__ = __or__
+
+	def __and__(self, other):
+		return other
+
+	__rand__ = __and__
+
+	def __bool__(self):
+		return True
+
+	def __str__(self):
+		return "1"
+
+	def __index__(self):
+		return 1
+
+ONE = _One()
+
 
 def ncr(n, r):
 	r = min(r, n - r)

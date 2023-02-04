@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 import itertools as it
 import os
+from pathlib import Path
 import requests
 import types
 
@@ -39,76 +40,20 @@ def working_dir(path):
 
 
 class Singleton(type):
+	"""
+	Singleton metaclass.
+
+	Usage:
+	>>> class SampleSingleton(metaclass=Singleton):
+	... 	pass
+	"""
+
 	_instances = {}
 
 	def __call__(cls, *args, **kwargs):
 		if cls not in cls._instances:
 			cls._instances[cls] = super().__call__(*args, **kwargs)
 		return cls._instances[cls]
-
-# class SampleSingleton(metaclass=Singleton):
-# 	pass
-
-
-class _Zero(metaclass=Singleton):
-	def __add__(self, other):
-		return other
-
-	__radd__ = __add__
-
-	def __mul__(self, other):
-		return self
-
-	__rmul__ = __mul__
-
-	def __or__(self, other):
-		return other
-
-	__ror__ = __or__
-
-	def __and__(self, other):
-		return self
-
-	__rand__ = __and__
-
-	def __bool__(self):
-		return False
-
-	def __str__(self):
-		return "0"
-
-	def __index__(self):
-		return 0
-
-ZERO = _Zero()
-
-
-class _One(metaclass=Singleton):
-	def __mul__(self, other):
-		return other
-
-	__rmul__ = __mul__
-
-	def __or__(self, other):
-		return self
-
-	__ror__ = __or__
-
-	def __and__(self, other):
-		return other
-
-	__rand__ = __and__
-
-	def __bool__(self):
-		return True
-
-	def __str__(self):
-		return "1"
-
-	def __index__(self):
-		return 1
-
-ONE = _One()
 
 
 class Config(types.SimpleNamespace):
@@ -337,14 +282,6 @@ class GoogleDriveDownloader:
 			for chunk in response.iter_content(GoogleDriveDownloader.CHUNK_SIZE):
 				if chunk:  # filter out keep-alive new chunks
 					f.write(chunk)
-
-
-# Call as make_module_callable(__name__, function_to_call) at the end of the module definition
-def make_module_callable(module_name, f):
-	class _CallableModule(types.ModuleType):
-		def __call__(self, *args, **kw):
-			return f(*args, **kw)
-	sys.modules[module_name].__class__ = _CallableModule
 
 
 if __name__ == '__main__':

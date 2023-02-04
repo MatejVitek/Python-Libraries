@@ -119,7 +119,8 @@ class AbstractWidgetMeta(pyqtWrapperType, ABCMeta):
 # This will require any subclass that overrides those two methods and has children to call super()._connect_signals or super()._init_ui_values at the beginning or the end (depending on when they want the childrens' methods to be called).
 # It will also require that all non-top-level GUIWidgets be explicitly initialised with a parent (rather than implicitly adding a parent via layout managers or similar).
 class GUIWidget(QWidget, metaclass=AbstractWidgetMeta):
-	""" Template class for GUI Widget initialisation.
+	"""
+	Template class for GUI Widget initialisation.
 
 	This class canonicalises the initialisation of GUI Widgets into 5 steps:
 

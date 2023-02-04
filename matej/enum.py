@@ -29,7 +29,8 @@ class ValueOrderedEnum(Enum):
 
 
 class AbstractEnumMeta(EnumMeta, ABCMeta):
-	""" Metaclass for abstract Enum classes (using decorators from `abc`)
+	"""
+	Metaclass for abstract Enum classes (using decorators from `abc`)
 
 	Usage:
 	>>> class MyEnum(Enum, metaclass=AbstractEnumMeta):
@@ -42,7 +43,8 @@ class AbstractEnumMeta(EnumMeta, ABCMeta):
 
 
 class DirectEnumMeta(EnumMeta):
-	""" Metaclass for Enum classes that allow direct access to the member values as the members themselves, such as:
+	"""
+	Metaclass for Enum classes that allow direct access to the member values as the members themselves, such as:
 	>>> class MyEnum(Enum, metaclass=DirectEnumMeta):
 	... 	X = 1
 	...
@@ -58,7 +60,8 @@ class DirectEnumMeta(EnumMeta):
 
 
 class AbstractDirectEnumMeta(AbstractEnumMeta):
-	""" Metaclass that combines the functionalities of `AbstractEnumMeta` and `DirectEnumMeta`.
+	"""
+	Metaclass that combines the functionalities of `AbstractEnumMeta` and `DirectEnumMeta`.
 
 	This class does not allow member names to start with an underscore (_).
 
@@ -76,7 +79,8 @@ class AbstractDirectEnumMeta(AbstractEnumMeta):
 
 
 class LazyEnum(Enum, metaclass=AbstractEnumMeta):
-	""" An abstract subclass of `Enum` that supports lazy evaluation of the members' values and attributes.
+	"""
+	An abstract subclass of `Enum` that supports lazy evaluation of the members' values and attributes.
 
 	Subclasses must implement the `_lazy_init` method, which takes the arguments from
 	the member's definition and returns the actual value (such as reading an image from a path).
@@ -135,7 +139,8 @@ class LazyEnum(Enum, metaclass=AbstractEnumMeta):
 
 
 class LazyDirectEnum(LazyEnum, metaclass=AbstractDirectEnumMeta):
-	""" An abstract `Enum` that supports lazy initialisation and also direct access to members' values.
+	"""
+	An abstract `Enum` that supports lazy initialisation and also direct access to members' values.
 
 	Note that `_lazy_init` is a classmethod in this class, as the member itself will be replaced by
 	the value returned by `_lazy_init` at the end of its execution anyway.

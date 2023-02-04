@@ -14,7 +14,8 @@ QUERY = object()  #TODO: Use this for the default parameter in add_argument to q
 class ArgParser(argparse.ArgumentParser):
 	""" An `argparse.ArgumentParser` subclass with methods for adding common argument types. """
 	def __init__(self, *args, **kw):
-		""" Initialise the parser.
+		"""
+		Initialise the parser.
 
 		By default this parser uses `HelpfulFormatter` as its formatter class.
 		"""
@@ -25,7 +26,8 @@ class ArgParser(argparse.ArgumentParser):
 		self.register('action', 'store_dict', StoreDictPairsAction)
 
 	def add_path_arg(self, *flags, **kw):
-		""" Add a path argument to the parser.
+		"""
+		Add a path argument to the parser.
 
 		Usage:
 		>>> ap.add_path_arg(default=Path(), dest='file', help="Path to a file")
@@ -37,7 +39,8 @@ class ArgParser(argparse.ArgumentParser):
 		return self.add_argument(*flags, type=Path, nargs='?', **kw)
 
 	def add_bool_arg(self, *flags, default=False, help="", negative_help=None, **kw):
-		""" Add a boolean argument to the parser.
+		"""
+		Add a boolean argument to the parser.
 
 		This method adds:
 
@@ -61,7 +64,7 @@ class ArgParser(argparse.ArgumentParser):
 		no_f = lambda arg: '--no-' + arg.strip('-')
 		str_to_bool = lambda s: s.lower() in {'true', 'yes', 't', 'y', '1'}
 
-		short_help = help + " (this toggles default value if no value is passed)" if help else help
+		short_help = help + " (this toggles the default if no value is passed)" if help else help
 		yes_help = help
 		no_help = negative_help if negative_help is not None else "Do not " + help[0].lower() + help[1:] if help else help
 		if default:
@@ -77,7 +80,8 @@ class ArgParser(argparse.ArgumentParser):
 
 	# TODO: Make it possible to pass the choice descriptions as values too?
 	def add_choice_arg(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
-		""" Add a choice argument to the parser.
+		"""
+		Add a choice argument to the parser.
 
 		Arguments:
 			choices: The possible choices.
@@ -108,7 +112,8 @@ class ArgParser(argparse.ArgumentParser):
 		return self.add_argument(*flags, type=type, choices=choices, help=help, **kw)
 
 	def add_number_arg(self, *flags, min=None, max=None, range=None, nargs='+', type=None, help="", **kw):
-		""" Add a number argument to the parser.
+		"""
+		Add a number argument to the parser.
 
 		The argument can receive multiple values (in which case it will be stored as a list). This can be explicitly restricted by passing `nargs=1` to this method.
 

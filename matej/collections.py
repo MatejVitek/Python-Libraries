@@ -5,7 +5,8 @@ from functools import reduce
 import operator as op
 import random
 
-from matej import ZERO, ONE
+from .callable import compose
+from .math import ZERO, ONE
 
 
 _DEFAULT = object()
@@ -61,13 +62,10 @@ def flatten(l):
 
 class DotDict(dict):
 	def __init__(self, *args, **kwargs):
-		d = dict(*args, **kwargs)
-		for key, val in d.items():
+		super().__init__(*args, **kwargs)
+		for key, val in self.items():
 			if isinstance(val, Mapping):
-				value = DotDict(val)
-			else:
-				value = val
-			self[key] = value
+				self[key] = DotDict(val)
 
 	def __delattr__(self, name):
 		try:
@@ -98,56 +96,31 @@ def dict_product(d):
 		>>> list(dict_product({'a': [1, 2], 'b': [3, 4]}))
 		[{'a': 1, 'b': 3}, {'a': 1, 'b': 4}, {'a': 2, 'b': 3}, {'a': 2, 'b': 4}]
 	"""
+
 	for x in it.product(*d.values()):
 		yield dzip(d, x)
 
 
-def dmap(*args, **kw):
-	return dict(map(*args, **kw))
+# dmap, lmap, lfilter, etc. which are equivalent to dict(map(...)), list(map(...)), list(filter(...)), etc.
+# lmap_ and dmap_ are in-place versions of lmap and dmap
+dmap = dmap_ = dfilter = dzip = lmap = lmap_ = lfilter = lzip = smap = sfilter = szip = tmap = tfilter = tzip = lambda *_, **__: None  # so we don't get "not defined" errors
+for col, func in it.product((dict, list, set, tuple), (map, filter, zip)):
+	# The name is the first letter of the collection followed by the name of the function
+	_name = f"{col.__name__[0]}{func.__name__}"
 
+	# Compose the collection constructor and the function
+	globals()[_name] = compose(col, func)
+	globals()[_name].__doc__ = f""" Composition of {col.__name__} and {func.__name__}, equivalent to {col.__name__}({func.__name__}(...)). """
 
-def lmap(*args, **kw):
-	return list(map(*args, **kw))
-
-
-def smap(*args, **kw):
-	return set(map(*args, **kw))
-
-
-def tmap(*args, **kw):
-	return tuple(map(*args, **kw))
-
-
-def dfilter(*args, **kw):
-	return dict(filter(*args, **kw))
-
-
-def lfilter(*args, **kw):
-	return list(filter(*args, **kw))
-
-
-def sfilter(*args, **kw):
-	return set(filter(*args, **kw))
-
-
-def tfilter(*args, **kw):
-	return tuple(filter(*args, **kw))
-
-
-def dzip(*args, **kw):
-	return dict(zip(*args, **kw))
-
-
-def lzip(*args, **kw):
-	return list(zip(*args, **kw))
-
-
-def szip(*args, **kw):
-	return set(zip(*args, **kw))
-
-
-def tzip(*args, **kw):
-	return tuple(zip(*args, **kw))
+	# For mapping mutable collections, we also define an in-place version
+	if col in (list, dict):
+		def _func(f, ld):
+			iterator = enumerate(ld) if isinstance(ld, list) else ld.items()
+			for k, v in iterator:
+				ld[k] = f(v)
+			return ld
+		globals()[_name + "_"] = _func
+		globals()[_name + "_"].__doc__ = f""" In-place mapping of passed function on {col.__name__}. """
 
 
 if __name__ == '__main__':

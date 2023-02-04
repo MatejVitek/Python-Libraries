@@ -6,7 +6,8 @@ import joblib
 # so it ends up occasionally going over 100%. So we use this solution instead.
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
-	"""Context manager to patch joblib to report into tqdm progress bar given as argument.
+	"""
+	Context manager to patch joblib to report into tqdm progress bar given as argument.
 
 	From: https://stackoverflow.com/a/61689175/5769814
 
@@ -18,6 +19,7 @@ def tqdm_joblib(tqdm_object):
 					for f in data
 				)
 	"""
+
 	def tqdm_print_progress(self):
 		if self.n_completed_tasks > tqdm_object.n:
 			n_completed = self.n_completed_tasks - tqdm_object.n
