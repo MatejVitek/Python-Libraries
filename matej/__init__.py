@@ -23,7 +23,7 @@ from copy import deepcopy
 import itertools as it
 import os
 from pathlib import Path
-import requests
+import sys
 import types
 
 from .string import multi_replace
@@ -31,12 +31,24 @@ from .string import multi_replace
 
 @contextmanager
 def working_dir(path):
+	""" Temporarily change working directory. """
 	oldwd = os.getcwd()
 	os.chdir(path)
 	try:
 		yield
 	finally:
 		os.chdir(oldwd)
+
+
+@contextmanager
+def pythonpath(*paths):
+	""" Temporarily add paths to sys.path. """
+	oldpath = sys.path
+	sys.path = [*paths, *sys.path]
+	try:
+		yield
+	finally:
+		sys.path = oldpath
 
 
 class Singleton(type):
@@ -57,8 +69,22 @@ class Singleton(type):
 
 
 class Config(types.SimpleNamespace):
+	""" Config class that supports nested initialisation and recursive merging. """
+	#TODO: Support JSON, CSV, XML maybe?
+
 	def __init__(self, d=None, /, **kw):
-		# Initialisation can be done with a single (possibly nested) dict or with **kw
+		"""
+		Initialise the Config object.
+
+		Initialisation can be done with a single (possibly nested) dict or with `**kw` arguments.
+
+		Also supports saving to and reading from the following file formats:
+		- INI,
+		- YAML,
+		- CSV,
+		- JSON.
+		"""
+
 		if d:
 			kw = d | kw  # In case of key clashes, values from **kw prevail
 		super().__init__(**kw)
@@ -84,6 +110,7 @@ class Config(types.SimpleNamespace):
 		return self
 
 	def update(self, other, **kw):
+		""" Update the Config object with another dict-like object or with `**kw` arguments. """
 		# In case of key clashes **kw values prevail over the ones in other
 		if kw:
 			other = deepcopy(other)
@@ -152,17 +179,21 @@ class Config(types.SimpleNamespace):
 	def copy(self):
 		return type(self)(self.__dict__)
 
-	# Support INI writing and reading. In these methods the leaves of the Config are considered
-	# to be the keys and values. Non-leaf nodes are the (possibly nested) sections.
-	def write_ini(self, ini_file):
-		# If path-like object is passed, open it and pass the file object instead
+	# Support INI writing and reading
+	def save_ini(self, ini_file):
+		"""
+		Write the Config to an INI file.
+
+		The leaves of the Config are considered to be the keys and values.
+		Non-leaf nodes are the (possibly nested) sections.
+		"""
+
+		# If path-like object is passed, handle opening it here
 		if isinstance(ini_file, (str, os.PathLike)):
 			Path(ini_file).parent.mkdir(parents=True, exist_ok=True)
 			with open(ini_file, 'w', encoding='utf-8') as f:
-				self.write_ini(f)
-		# When the file object is passed, write the Config to it
-		else:
-			self._write_ini(self, ini_file)
+				return self._write_ini(self, f)
+		self._write_ini(self, ini_file)
 
 	@classmethod
 	def _write_ini(cls, cfg, f, header=''):
@@ -173,14 +204,14 @@ class Config(types.SimpleNamespace):
 		# Write out the leaves first
 		if leaves:
 			for key, value in leaves:
-				print(f"{indent}{cls.var2str(key)} = {value}", file=f)
+				print(f"{indent}{cls.ini_var2str(key)} = {value}", file=f)
 			if sections:  # Empty new line to end the section except at the end of the file
 				print(file=f)
 
 		# Write sections recursively
 		if sections:
 			for section_name, section in sections:
-				section_name = cls.var2str(section_name)
+				section_name = cls.ini_var2str(section_name)
 				if header:
 					section_name = f"{header}.{section_name}"
 				print(f"{indent}[{section_name}]", file=f)
@@ -188,6 +219,13 @@ class Config(types.SimpleNamespace):
 
 	@classmethod
 	def from_ini(cls, ini_file):
+		"""
+		Read the Config from an INI file.
+
+		The leaves of the Config are considered to be the keys and values.
+		Non-leaf nodes are the (possibly nested) sections.
+		"""
+
 		# If path-like object is passed, open it and pass the file object instead
 		if isinstance(ini_file, (str, os.PathLike)):
 			with open(ini_file, 'r', encoding='utf-8') as f:
@@ -204,7 +242,7 @@ class Config(types.SimpleNamespace):
 
 		# Read sections
 		for section in parser.sections():
-			subsection_split = cls.str2var(section).split('.')
+			subsection_split = cls.ini_str2var(section).split('.')
 			curr_cfg = cfg
 			# Create subsection (and its parents if necessary) in the Config if it doesn't exist
 			for section_name in subsection_split:
@@ -231,18 +269,45 @@ class Config(types.SimpleNamespace):
 				if path.is_absolute() or path.exists() and len(path.parts) > 1:
 					value = path
 
-			cfg[cls.str2var(key)] = value
+			cfg[cls.ini_str2var(key)] = value
 
 	_replace_dict = {' ': '_', '_': '__', '-': '___'}
-	# Translate INI section header or key to Config attribute name
 	@classmethod
-	def str2var(cls, key):
+	def ini_str2var(cls, key):
+		""" Translate INI section header or key to Config attribute name. """
 		return multi_replace(key, cls._replace_dict).lower()
 
-	# Translate Config attribute name to INI section header or key
 	@classmethod
-	def var2str(cls, attr):
+	def ini_var2str(cls, attr):
+		""" Translate Config attribute name to INI section header or key. """
 		return multi_replace(attr, {v: k for k, v in cls._replace_dict.items()}).title()
+
+	# Support YAML writing and reading
+	def save_yaml(self, yaml_file, **kw):
+		""" Write the Config to a YAML file. """
+
+		# If path-like object is passed, open it and pass the file object instead
+		if isinstance(yaml_file, (str, os.PathLike)):
+			Path(yaml_file).parent.mkdir(parents=True, exist_ok=True)
+			with open(yaml_file, 'w', encoding='utf-8') as f:
+				return self.save_yaml(f)
+		yaml = self._create_yaml_handler(**kw)
+		yaml.dump(self, yaml_file)
+
+	@classmethod
+	def from_yaml(cls, yaml_file, **kw):
+		""" Read the Config from a YAML file. """
+		yaml = cls._create_yaml_handler(**kw)
+		return cls(yaml.load(yaml_file))
+
+	@staticmethod
+	def _create_yaml_handler(**kw):
+		try:
+			from ruamel.yaml import YAML
+		except ImportError:
+			raise ImportError("YAML file handling requires the ruamel.yaml library. Please install it with `pip install ruamel.yaml`.")
+
+		return YAML()  #TODO: Test this with typ='safe' and typ='rt'. What happens with comments in the Config?
 
 
 # Class adapted from https://github.com/ndrplz/google-drive-downloader/blob/master/google_drive_downloader/google_drive_downloader.py
@@ -252,6 +317,11 @@ class GoogleDriveDownloader:
 
 	@staticmethod
 	def download_file_from_google_drive(file_id, dest_path):
+		try:
+			import requests
+		except ImportError:
+			raise ImportError("This function requires the requests library. Please install it using `pip install requests`.")
+
 		dest_path = Path(dest_path)
 		dest_path.parent.mkdir(parents=True, exist_ok=True)
 
