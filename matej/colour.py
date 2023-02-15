@@ -1,6 +1,6 @@
 import numpy as np
 
-from .collections import ensure_iterable
+from matej.collections import ensure_iterable
 
 
 # Accepts RGB/greyscale colours only

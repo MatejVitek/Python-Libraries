@@ -3,7 +3,7 @@ from ast import literal_eval
 from pathlib import Path
 import textwrap
 
-from .collections import ensure_iterable
+from matej.collections import ensure_iterable
 
 
 # Auxiliary stuff

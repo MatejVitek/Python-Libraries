@@ -5,8 +5,8 @@ from functools import reduce
 import operator as op
 import random
 
-from .callable import compose
-from .math import ZERO, ONE
+from matej.callable import compose
+from matej.math import ZERO, ONE
 
 
 _DEFAULT = object()

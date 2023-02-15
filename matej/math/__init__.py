@@ -6,7 +6,7 @@ import numpy as np
 import operator as op
 import threading
 
-from .. import Singleton
+from matej import Singleton
 
 
 class _Zero(metaclass=Singleton):
