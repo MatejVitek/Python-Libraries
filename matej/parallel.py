@@ -1,8 +1,11 @@
 import contextlib
 try:
 	import joblib
-except ImportError:
-	raise ImportError("The parallel module requires the joblib library. Please install it using `pip install joblib`.")
+except ImportError as e:
+	raise ImportError(
+		"The parallel module requires the joblib library."
+		"Please install it using `pip install joblib`."
+	) from e
 
 
 # https://stackoverflow.com/a/58936697/5769814 can get called on intermediate results,
