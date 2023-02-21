@@ -1,9 +1,10 @@
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Iterator
 import itertools as it
 from functools import reduce
 import operator as op
 import random
+from typing import List, Dict, Set, Tuple, Callable
 
 from matej.callable import compose
 from matej.math import ZERO, ONE
@@ -24,19 +25,21 @@ union = _reductify(op.or_)
 intersection = _reductify(op.and_, ONE)
 
 
-def ensure_iterable(x, tuplify_single=None):
-	if tuplify_single is not None and isinstance(x, tuplify_single):
-		return x,
+def is_iterable(x, noniterable_types=None):
+	if noniterable_types is True:
+		noniterable_types = (str, bytes)
+	if noniterable_types is not None and isinstance(x, noniterable_types):
+		return False
 	try:
-		iter(x)
-		return x
-	except TypeError:
-		try:
-			for _ in x:
-				pass
-			return x
-		except TypeError:
-			return x,
+		for _ in x:
+			break
+		return True
+	except Exception:  #pylint: disable=broad-except  # Can't just catch TypeError because other exceptions can be raised in some cases
+		return False
+
+
+def ensure_iterable(x, tuplify_single=None):
+	return x if is_iterable(x, tuplify_single) else (x,)
 
 
 def shuffle(l):
@@ -52,9 +55,14 @@ def shuffled(l):
 		return new_l
 
 
-def flatten(l):
+def flatten(l, flatten_strings=False, flatten_dicts=True, flatten_generators=True):
 	for x in l:
-		if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+		if (
+			is_iterable(x)
+		    and (flatten_strings or not isinstance(x, (str, bytes)))
+		    and (flatten_dicts or not isinstance(x, Mapping))
+		    and (flatten_generators or not isinstance(x, Iterator))
+		):
 			yield from flatten(x)
 		else:
 			yield x
@@ -103,8 +111,12 @@ def dict_product(d):
 
 # dmap, lmap, lfilter, etc. which are equivalent to dict(map(...)), list(map(...)), list(filter(...)), etc.
 # lmap_ and dmap_ are in-place versions of lmap and dmap
-dmap = dmap_ = dfilter = dzip = lmap = lmap_ = lfilter = lzip = smap = sfilter = szip = tmap = tfilter = tzip = lambda *_, **__: None  # so we don't get "not defined" errors
-for col, func in it.product((dict, list, set, tuple), (map, filter, zip)):
+# First we define the types and initialise to a placeholder value (these three lines are just for type hinting and to avoid warnings)
+_d = Callable[[Iterable], Dict]; _l = Callable[[Iterable], List]; _s = Callable[[Iterable], Set]; _t = Callable[[Iterable], Tuple]
+dmap: _d; dmap_: _d; dfilter: _d; dzip: _d; dflatten: _d; lmap: _l; lmap_: _l; lfilter: _l; lzip: _l; lflatten: _l; smap: _s; sfilter: _s; szip: _s; sflatten: _s; tmap: _t; tfilter: _t; tzip: _t; tflatten: _t
+dmap = dmap_ = dfilter = dzip = dflatten = lmap = lmap_ = lfilter = lzip = lflatten = smap = sfilter = szip = sflatten = tmap = tfilter = tzip = tflatten = lambda *_, **__: None
+# And now we actually generate the functions and their docs
+for col, func in it.product((dict, list, set, tuple), (map, filter, zip, flatten)):
 	# The name is the first letter of the collection followed by the name of the function
 	_name = f"{col.__name__[0]}{func.__name__}"
 
