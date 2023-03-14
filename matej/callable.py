@@ -5,9 +5,9 @@ import types
 
 def compose(*functions):
 	"""
-	Compose arbitrary number of functions into one. I.e. compose(f, g, h)(x, y) == f(g(h(x, y))).
+	Compose arbitrary number of functions into one. I.e. `compose(f, g, h)(x, y) == f(g(h(x, y)))`.
 
-	All functions, aside from the last one (h in the above example), must take exactly one argument.
+	All functions, aside from the last one (`h` in the above example), must take exactly one argument.
 	"""
 
 	return ft.reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), functions)

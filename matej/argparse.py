@@ -12,12 +12,13 @@ QUERY = object()  #TODO: Use this for the default parameter in add_argument to q
 
 
 class ArgParser(argparse.ArgumentParser):
-	""" An `argparse.ArgumentParser` subclass with methods for adding common argument types. """
+	""" An :class:`argparse.ArgumentParser` subclass with methods for adding common argument types. """
+
 	def __init__(self, *args, **kw):
 		"""
 		Initialise the parser.
 
-		By default this parser uses `HelpfulFormatter` as its formatter class.
+		By default this parser uses :class:`HelpfulFormatter` as its formatter class.
 		"""
 
 		if 'formatter_class' not in kw:
@@ -29,7 +30,8 @@ class ArgParser(argparse.ArgumentParser):
 		"""
 		Add a path argument to the parser.
 
-		Usage:
+		Examples
+		--------
 		>>> ap.add_path_arg(default=Path(), dest='file', help="Path to a file")
 		>>> ap.add_path_arg('-p', '--path', help="Path to a file")
 		"""
@@ -44,16 +46,17 @@ class ArgParser(argparse.ArgumentParser):
 
 		This method adds:
 
-			- long flags that store true into the destination
-			- long flags with `--no-` prefix that store false into the destination
+			- long flags that store `True` into the destination
+			- long flags with `--no-` prefix that store `False` into the destination
 			- short flags that:
-				- store true into the destination if 'True' or 'Yes' is passed as an argument
-				- store false into the destination if 'False' or 'No' is passed as an argument
-				- toggle the default value if no argument is passed
+				- store `True` into the destination if `'True'` or `'Yes'` is passed as an argument;
+				- store `False` into the destination if `'False'` or `'No'` is passed as an argument;
+				- toggle the default value if no argument is passed.
 
-		If `dest` is not explicitly provided, it is inferred from the first long flag or the first short flag if no long flags are passed.
+		If `dest` is not explicitly provided, it is inferred from the first long flag, or from the first short flag if no long flags are passed.
 
-		Usage:
+		Examples
+		--------
 		>>> ap.add_bool_arg('-v', '--verbose', default=True, help="Print verbose output")
 		"""
 
@@ -78,17 +81,22 @@ class ArgParser(argparse.ArgumentParser):
 		group.add_argument(*map(no_f, long_flags), dest=dest, action='store_false', help=no_help, **kw)
 		return result
 
-	# TODO: Make it possible to pass the choice descriptions as values too?
+	#TODO: Make it possible to pass the choice descriptions as values too?
 	def add_choice_arg(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
 		"""
 		Add a choice argument to the parser.
 
-		Arguments:
-			choices: The possible choices.
-			choice_descriptions: A list of descriptions for the choices.
-			type: The type of the choices. If not provided, it is inferred from the choices (`int` => `float` => `str`).
+		Parameters
+		----------
+		choices : Collection[Union[int, float, str]]
+			The possible choices.
+		choice_descriptions : Collection[str], optional
+			A list of descriptions for the choices.
+		type : type, optional
+			The type of the choices. If not provided, it is inferred from `choices` (`int` => `float` => `str`).
 
-		Usage:
+		Examples
+		--------
 		>>> ap.add_choice_arg((1, 2, 3), '-c', '--choice', default=1, type=float, help="Choose one of the options")
 		>>> ap.add_choice_arg(('t2b', 'b2t'), '-m', '--method', choice_descriptions=("Top-to-bottom", "Bottom-to-top"), help="Method to use")
 		"""
@@ -117,14 +125,20 @@ class ArgParser(argparse.ArgumentParser):
 
 		The argument can receive multiple values (in which case it will be stored as a list). This can be explicitly restricted by passing `nargs=1` to this method.
 
-		Arguments:
-			min: The minimum value the argument can have.
-			max: The maximum value the argument can have.
-			range: A tuple of the minimum and maximum values the argument can have (alternative to `min` and `max`).
-			type: The type of the argument. If not provided, it is inferred from the `min` and `max` values (`int` => `float`).
+		Parameters
+		----------
+		min : Union[int, float], optional
+			The minimum value the argument can have.
+		max : Union[int, float], optional
+			The maximum value the argument can have.
+		range : Tuple[Union[int, float], Union[int, float]], optional
+			A tuple of the minimum and maximum values the argument can have (alternative to `min` and `max`).
+		type : type, optional
+			The type of the argument. If not provided, it is inferred from the `min` and `max` values (`int` => `float`).
 
-		Usage:
-		>>> ap.add_number_arg('-n', '--number', min=0, max=1, type=float, help="A number between 0 and 1")
+		Examples
+		--------
+		>>> ap.add_number_arg('-n', '--number', min=0, max=1, nargs=1, type=float, help="A number between 0 and 1")
 		>>> ap.add_number_arg('-l', '--list', min=0, nargs='+', type=int, help="A list of non-negative numbers")
 		>>> ap.add_number_arg('-c', '--color', range=(0, 255), nargs=3, metavar=("R", "G", "B"), help="A color in RGB format")
 		"""

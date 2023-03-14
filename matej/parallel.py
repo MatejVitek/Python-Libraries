@@ -17,13 +17,15 @@ def tqdm_joblib(tqdm_object):
 
 	From: https://stackoverflow.com/a/61689175/5769814
 
-	Sample usage::
+	Examples
+	--------
+	.. code-block:: python
 
-			with tqdm_joblib(tqdm(files)) as data:
-				Parallel(n_jobs=-1)(
-					delayed(process_file)(f)
-					for f in data
-				)
+		with tqdm_joblib(tqdm(files)) as data:
+			Parallel(n_jobs=-1)(
+				delayed(process_file)(f)
+				for f in data
+			)
 	"""
 
 	def tqdm_print_progress(self):
