@@ -129,7 +129,7 @@ class Config(SimpleNamespace, MutableMapping):
 						# 			self[key][i] |= other_item
 						# 			value.remove(other_item)
 						# 			break
-						# Just have to decide how to match the Configs. Can probably ignore (read: just merge) nested lists, the merging logic is very unclear in that case anyway.
+						# Just have to decide how to match the Configs. Can probably ignore (i.e. just merge) nested lists, since the merging logic is very unclear in that case anyway.
 						self[key] += value
 						continue
 				self[key] = value
