@@ -18,13 +18,14 @@ class Config(SimpleNamespace, MutableMapping):
 	Also supports saving to and reading from the following file formats:
 	- INI,
 	- YAML,
+	- TOML,
 	- JSON.
 	"""
-	#TODO: Support JSON. Also CSV, XML maybe?
+	#TODO: Support JSON and TOML. Also CSV, XML maybe?
 
 	def __init__(self, d=None, /, **kw):
 		"""
-		Initialise the Config object.
+		Initialise the :class:`Config` object.
 
 		Initialisation can be done with a single (possibly nested) dict or with `**kw` arguments.
 		"""
@@ -55,7 +56,7 @@ class Config(SimpleNamespace, MutableMapping):
 	# Recursive conversion to dict and clearer repr #
 	#################################################
 	def to_dict(self):
-		""" Recursive conversion to a dict. """
+		""" Recursive conversion to a :class:`dict`. """
 		return {k: self._recursive_to_dict(v) for k, v in self.items()}
 
 	@classmethod
@@ -103,7 +104,7 @@ class Config(SimpleNamespace, MutableMapping):
 		return self
 
 	def update(self, other=None, /, **kw):
-		""" Update the Config object with another dict-like object or with `**kw` arguments. """
+		""" Update the :class:`Config` object with another dict-like object or with `**kw` arguments. """
 		# In case of key clashes **kw values prevail over the ones in other
 		if other is None:
 			return self.update(kw)
@@ -184,13 +185,13 @@ class Config(SimpleNamespace, MutableMapping):
 	###################################
 	def save_ini(self, ini_file):
 		"""
-		Write the `Config` to an INI file.
+		Write the :class:`Config` to an INI file.
 
-		The leaves of the `Config` are considered to be the keys and values.
+		The leaves of the :class:`Config` are considered to be the keys and values.
 		Non-leaf nodes are the (possibly nested) sections.
 
-		Note that INI files have limited support for certain more complex cases available in `Config`,
-		such as nested `Config`s inside list elements. For these cases, YAML or JSON is recommended.
+		Note that INI files have limited support for certain more complex cases available in :class:`Config`,
+		such as nested :class:`Config`s inside list elements. For these cases, YAML or JSON is recommended.
 		"""
 
 		# If path-like object is passed, handle opening it here
@@ -225,9 +226,9 @@ class Config(SimpleNamespace, MutableMapping):
 	@classmethod
 	def from_ini(cls, ini_file):
 		"""
-		Read the `Config` from an INI file.
+		Read the :class:`Config` from an INI file.
 
-		The leaves of the `Config` are considered to be the keys and values.
+		The leaves of the :class:`Config` are considered to be the keys and values.
 		Non-leaf nodes are the (possibly nested) sections.
 		"""
 
@@ -279,19 +280,19 @@ class Config(SimpleNamespace, MutableMapping):
 	_replace_dict = {' ': '_', '_': '__', '-': '___'}
 	@classmethod
 	def ini_str2var(cls, key):
-		""" Translate INI section header or key to `Config` attribute name. """
+		""" Translate INI section header or key to :class:`Config` attribute name. """
 		return multi_replace(key, cls._replace_dict).lower()
 
 	@classmethod
 	def ini_var2str(cls, attr):
-		""" Translate `Config` attribute name to INI section header or key. """
+		""" Translate :class:`Config` attribute name to INI section header or key. """
 		return multi_replace(attr, {v: k for k, v in cls._replace_dict.items()}).title()
 
 	####################################
 	# Support YAML writing and reading #
 	####################################
 	def save_yaml(self, yaml_file, **kw):
-		""" Write the `Config` to a YAML file. """
+		""" Write the :class:`Config` to a YAML file. """
 		# If path-like object is passed, open it and pass the file object instead
 		if isinstance(yaml_file, (str, os.PathLike)):
 			Path(yaml_file).parent.mkdir(parents=True, exist_ok=True)
@@ -302,7 +303,7 @@ class Config(SimpleNamespace, MutableMapping):
 
 	@classmethod
 	def save_yamls(cls, configs, yaml_file, **kw):
-		""" Write multiple `Config`s to a YAML file. """
+		""" Write multiple :class:`Config`s to a YAML file. """
 		# If path-like object is passed, open it and pass the file object instead
 		if isinstance(yaml_file, (str, os.PathLike)):
 			Path(yaml_file).parent.mkdir(parents=True, exist_ok=True)
@@ -313,10 +314,10 @@ class Config(SimpleNamespace, MutableMapping):
 
 	@classmethod
 	def from_yaml(cls, yaml_file, **kw):
-		""" Read the `Config` from a YAML file.
+		""" Read the :class:`Config` from a YAML file.
 
-		Note: If the YAML file contains multiple documents, each document will be read as a separate `Config`.
-		In this case, a list of `Config`s will be returned.
+		Note: If the YAML file contains multiple documents, each document will be read as a separate :class:`Config`.
+		In this case, a list of :class:`Config`s will be returned.
 		"""
 
 		# If path-like object is passed, open it and pass the file object instead

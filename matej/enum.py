@@ -30,9 +30,10 @@ class ValueOrderedEnum(Enum):
 
 class AbstractEnumMeta(EnumMeta, ABCMeta):
 	"""
-	Metaclass for abstract Enum classes (using decorators from `abc`)
+	Metaclass for abstract Enum classes (using decorators from :mod:`abc`)
 
-	Usage:
+	Examples
+	--------
 	>>> class MyEnum(Enum, metaclass=AbstractEnumMeta):
 	... 	# This method must be overridden in subclasses
 	... 	@abstractmethod
@@ -61,11 +62,12 @@ class DirectEnumMeta(EnumMeta):
 
 class AbstractDirectEnumMeta(AbstractEnumMeta):
 	"""
-	Metaclass that combines the functionalities of `AbstractEnumMeta` and `DirectEnumMeta`.
+	Metaclass that combines the functionalities of :class:`AbstractEnumMeta` and :class:`DirectEnumMeta`.
 
-	This class does not allow member names to start with an underscore (_).
+	This class does not allow member names to start with an underscore (`_`).
 
-	Usage:
+	Examples
+	--------
 	>>> class MyEnum(Enum, metaclass=AbstractDirectEnumMeta):
 	... 	...
 	...
@@ -80,9 +82,9 @@ class AbstractDirectEnumMeta(AbstractEnumMeta):
 
 class LazyEnum(Enum, metaclass=AbstractEnumMeta):
 	"""
-	An abstract subclass of `Enum` that supports lazy evaluation of the members' values and attributes.
+	An abstract subclass of :class:`~enum.Enum` that supports lazy evaluation of the members' values and attributes.
 
-	Subclasses must implement the `_lazy_init` method, which takes the arguments from
+	Subclasses must implement the :meth:`_lazy_init` method, which takes the arguments from
 	the member's definition and returns the actual value (such as reading an image from a path).
 	It can also initialise other attributes of the member. The names of these attributes shouldn't start
 	with underscores (`_`).
@@ -95,7 +97,8 @@ class LazyEnum(Enum, metaclass=AbstractEnumMeta):
 	See the `MixedEnum` class for an example that reimplements `__init__` to allow mixing
 	regular and lazy initialisation via the `Lazy` wrapper.
 
-	Usage:
+	Examples
+	--------
 	>>> class MyLazyEnum(LazyEnum):
 	... 	X = 'x'
 	... 	Y = 'y'
@@ -140,12 +143,13 @@ class LazyEnum(Enum, metaclass=AbstractEnumMeta):
 
 class LazyDirectEnum(LazyEnum, metaclass=AbstractDirectEnumMeta):
 	"""
-	An abstract `Enum` that supports lazy initialisation and also direct access to members' values.
+	An abstract :class:`~enum.Enum` that supports lazy initialisation and also direct access to members' values.
 
-	Note that `_lazy_init` is a classmethod in this class, as the member itself will be replaced by
+	Note that :meth:`_lazy_init` is a classmethod in this class, as the member itself will be replaced by
 	the value returned by `_lazy_init` at the end of its execution anyway.
 
-	Usage:
+	Examples
+	--------
 	>>> class MyLazyDirectEnum(LazyDirectEnum):
 	... 	X = 'x'
 	... 	Y = 'y'
@@ -185,14 +189,15 @@ class Lazy:
 
 class LazyEagerEnum(LazyEnum):
 	"""
-	An abstract subclass of `LazyEnum` that supports mixing of regular `__init__` initialisation
+	An abstract subclass of :class:`LazyEnum` that supports mixing of regular `__init__` initialisation
 	with lazy initialisation of the value via the `Lazy` wrapper (see below for an example).
-	*Note that if several `Lazy`s appear in a single value, their argument lists will be concatenated.*
+	*Note that if several :class:`Lazy`s appear in a single value, their argument lists will be concatenated.*
 
 	When reimplementing `__init__` in a subclass, call this class' `__init__` to properly parse out
-	the `Lazy` arguments. After the call, the remaining arguments will be in `self.init_args`.
+	the :class:`Lazy` arguments. After the call, the remaining arguments will be in :attr:`self.init_args`.
 
-	Usage:
+	Examples
+	--------
 	>>> class MyMixedEnum(LazyEagerEnum):
 	... 	X = Lazy(1)
 	... 	Y = 'y', Lazy(2), 'w', Lazy(3, 4)  # Only values in Lazy will be passed to _lazy_init

@@ -182,7 +182,7 @@ class GUIWidget(QWidget, metaclass=AbstractWidgetMeta):
 	_init_ui 8 9 (3, 4, 5, 6, 7) {'c': 6, 'd': 10, 'e': 40, 'val2': 15, parent: None}
 	_connect_signals
 	_init_ui_values 80, 15, 6
-	>>> ExampleGUIWidget(1, 2, 3, d=10, val2=15)  # This is the minimal call possible - any less arguments would raise an error
+	>>> ExampleGUIWidget(1, 2, 3, d=10, val2=15)  # This is the minimal call possible - any fewer arguments would raise an error
 	_init 1 2 10 10 20 () {'val2': 15}
 	_init_ui 3 True () {'d': 10, 'val2': 15}
 	_connect_signals

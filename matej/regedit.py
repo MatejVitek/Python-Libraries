@@ -22,13 +22,17 @@ def _parse(path):
 
 def exists(key: Union[str, Path], value_name: Optional[str] = None) -> bool:
 	"""
-	Determines whether a key/value exists.
+	Determine whether a key/value exists.
 
-	Args:
-		key: The full path to the key.
-		value_name: The value name. If `None`, checks for the key only. If `''`, checks for the default value.
+	Parameters
+	----------
+	key
+		The full path to the key.
+	value_name
+		The value name. If `None`, checks for the key only. If `''`, checks for the default value.
 
-	Returns:
+	Returns
+	-------
 		`True` if value exists in specified key, `False` otherwise.
 	"""
 
@@ -44,12 +48,17 @@ def get_value(key: Union[str, Path], value_name: str = '', return_type: bool = F
 	"""
 	Gets the specified value from the specified key.
 
-	Args:
-		key: The full path to the key.
-		value_name: The value name. If `''`, get the default value.
-		return_type: If `True`, returns the value type as well.
+	Parameters
+	----------
+	key
+		The full path to the key.
+	value_name
+		The value name. If `''`, get the default value.
+	return_type
+		If `True`, returns the value type as well.
 
-	Returns:
+	Returns
+	-------
 		The value if it exists, `None` otherwise.
 		If `return_type` is `True`, instead returns a tuple of the value and its type,
 		or `(None, None)` if the value does not exist.
@@ -66,19 +75,27 @@ def set_value(key: Union[str, Path], value_name: str = '', value: Union[str, int
 	"""
 	Sets the specified value at the specified key.
 
-	Args:
-		key: The full path to the key.
-		value_name: The value name. If `''`, sets the default value.
-		value: The value to assign to the specified value name.
-		value_type: The value type to use for the specified value. Defaults to `'REG_SZ'`.
-		create_keys: Whether to create necessary keys if they do not exist.
-			By default (or if `None` is passed), only creates the key specified by `key` if it does not exist.
-			If `False`, no keys are created and this function fails if the key does not exist.
-			If `True`, the specified key and any non-existing parents are created.
+	Parameters
+	----------
+	key
+		The full path to the key.
+	value_name
+		The value name. If `''`, sets the default value.
+	value
+		The value to assign to the specified value name.
+	value_type
+		The value type to use for the specified value. Defaults to `'REG_SZ'`.
+	create_keys
+		Whether to create necessary keys if they do not exist.
+		By default (or if `None` is passed), only creates the key specified by `key` if it does not exist.
+		If `False`, no keys are created and this function fails if the key does not exist.
+		If `True`, the specified key and any non-existing parents are created.
 
-	Raises:
-		OSError: If the necessary keys did not exist (and were not created by this function as per `create_keys`),
-			or if the keys/value could not be created or set for some reason (such as permission errors).
+	Raises
+	------
+	OSError
+		If the necessary keys did not exist (and were not created by this function as per `create_keys`),
+		or if the keys/value could not be created or set for some reason (such as permission errors).
 	"""
 
 	hive, path = _parse(key)
@@ -101,12 +118,17 @@ def delete_value(key: Union[str, Path], value_name: str = ''):
 	"""
 	Deletes the specified value.
 
-	Args:
-		key: The full path to the key.
-		value_name: The value name. If `''`, deletes the default value.
+	Parameters
+	----------
+	key
+		The full path to the key.
+	value_name
+		The value name. If `''`, deletes the default value.
 
-	Raises:
-		OSError: If the specified value was not found or could not be deleted for some reason (such as permission errors).
+	Raises
+	------
+	OSError
+		If the specified value was not found or could not be deleted for some reason (such as permission errors).
 	"""
 
 	hive, path = _parse(key)
@@ -118,14 +140,19 @@ def delete_key(key: Union[str, Path], recursive: bool = False):
 	"""
 	Deletes the specified key (and its values), which must not contain subkeys (unless `recursive=True` is passed).
 
-	Args:
-		key: The full path to the key.
-		recursive: If `True`, recursively deletes subkeys as well.
-			If `False`, this function fails if the specified key contains subkeys.
+	Parameters
+	----------
+	key
+		The full path to the key.
+	recursive
+		If `True`, recursively deletes subkeys as well.
+		If `False`, this function fails if the specified key contains subkeys.
 
-	Raises:
-		OSError: If the specified key was not found or contained subkeys (with `recursive=False`),
-			or could not be deleted for some other reason (such as permission errors).
+	Raises
+	------
+	OSError
+		If the specified key was not found or contained subkeys (with `recursive=False`),
+		or could not be deleted for some other reason (such as permission errors).
 	"""
 
 	path = Path(key)
@@ -140,10 +167,13 @@ def subkeys(key: Union[str, Path]) -> Iterator[str]:
 	"""
 	Iterates over subkeys of a registry key.
 
-	Args:
-		key: The full path to the key.
+	Parameters
+	----------
+	key
+		The full path to the key.
 
-	Returns:
+	Returns
+	-------
 		An iterator over all the subkey names of the specified key.
 	"""
 
