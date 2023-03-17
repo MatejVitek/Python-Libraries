@@ -1,3 +1,4 @@
+from abc import ABC
 import argparse
 from ast import literal_eval
 from pathlib import Path
@@ -12,21 +13,35 @@ QUERY = object()  #TODO: Use this for the default parameter in add_argument to q
 
 
 class ArgParser(argparse.ArgumentParser):
-	""" An :class:`argparse.ArgumentParser` subclass with methods for adding common argument types. """
+	"""
+	An :class:`argparse.ArgumentParser` subclass with methods for adding common argument types.
+
+	This parser uses :class:`HelpfulFormatter` as its formatter class by default.
+	It also provides the `'store_dict'` action, which allows the user to pass key-value pairs as argument values.
+	"""
 
 	def __init__(self, *args, **kw):
-		"""
-		Initialise the parser.
-
-		By default this parser uses :class:`HelpfulFormatter` as its formatter class.
-		"""
-
+		""" Initialise the parser. See the documentation of :class:`argparse.ArgumentParser` for more information. """
 		if 'formatter_class' not in kw:
 			kw['formatter_class'] = HelpfulFormatter
 		super().__init__(*args, **kw)
 		self.register('action', 'store_dict', StoreDictPairsAction)
 
-	def add_path_arg(self, *flags, **kw):
+	def add_arg(self, arg):
+		arg.add_to_ap(self)
+
+	def add_str_arg(self, *args, **kw):
+		"""
+		Add a string argument to the parser.
+
+		Examples
+		--------
+		>>> ap.add_str_arg(default="Hello, world!", dest='message', help="Message to print")
+		>>> ap.add_str_arg('-m', '--message', help="Message to print")
+		"""
+		return self.add_arg(StrArg(*args, **kw))
+
+	def add_path_arg(self, *args, **kw):
 		"""
 		Add a path argument to the parser.
 
@@ -35,12 +50,9 @@ class ArgParser(argparse.ArgumentParser):
 		>>> ap.add_path_arg(default=Path(), dest='file', help="Path to a file")
 		>>> ap.add_path_arg('-p', '--path', help="Path to a file")
 		"""
+		return self.add_arg(PathArg(*args, **kw))
 
-		if not flags and 'dest' not in kw:
-			raise ValueError("You must provide a destination name for flagless arguments")
-		return self.add_argument(*flags, type=Path, nargs='?', **kw)
-
-	def add_bool_arg(self, *flags, default=False, help="", negative_help=None, **kw):
+	def add_bool_arg(self, *args, **kw):
 		"""
 		Add a boolean argument to the parser.
 
@@ -59,30 +71,10 @@ class ArgParser(argparse.ArgumentParser):
 		--------
 		>>> ap.add_bool_arg('-v', '--verbose', default=True, help="Print verbose output")
 		"""
+		return self.add_arg(BoolArg(*args, **kw))
 
-		short_flags = [flag for flag in flags if flag[0] == '-' and flag[1] != '-']
-		long_flags = [flag for flag in flags if flag[:2] == '--']
-		dest = kw.get('dest', (long_flags[0] if long_flags else flags[0]).strip('-').replace('-', '_'))
 
-		no_f = lambda arg: '--no-' + arg.strip('-')
-		str_to_bool = lambda s: s.lower() in {'true', 'yes', 't', 'y', '1'}
-
-		short_help = help + " (this toggles the default if no value is passed)" if help else help
-		yes_help = help
-		no_help = negative_help if negative_help is not None else "Do not " + help[0].lower() + help[1:] if help else help
-		if default:
-			yes_help += " <default>"
-		else:
-			no_help += " <default>"
-
-		group = self.add_mutually_exclusive_group()
-		result = group.add_argument(*short_flags, dest=dest, nargs='?', default=default, const=not default, type=str_to_bool, help=short_help, **kw)
-		group.add_argument(*long_flags, dest=dest, action='store_true', help=yes_help, **kw)
-		group.add_argument(*map(no_f, long_flags), dest=dest, action='store_false', help=no_help, **kw)
-		return result
-
-	#TODO: Make it possible to pass the choice descriptions as values too?
-	def add_choice_arg(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
+	def add_choice_arg(self, *args, **kw):
 		"""
 		Add a choice argument to the parser.
 
@@ -100,26 +92,9 @@ class ArgParser(argparse.ArgumentParser):
 		>>> ap.add_choice_arg((1, 2, 3), '-c', '--choice', default=1, type=float, help="Choose one of the options")
 		>>> ap.add_choice_arg(('t2b', 'b2t'), '-m', '--method', choice_descriptions=("Top-to-bottom", "Bottom-to-top"), help="Method to use")
 		"""
+		return self.add_arg(ChoiceArg(*args, **kw))
 
-		if type is None:
-			try:
-				type = int if all(int(x) == x for x in choices) else float
-			except ValueError:
-				if all(isinstance(x, str) for x in choices):
-					type = str
-		if choice_descriptions:
-			longest = max(len(str(choice)) for choice in choices)
-			help += "\n"
-			for choice, description in zip(choices, choice_descriptions):
-				help += f"\t{choice:>{longest}}: {description}"
-				if 'default' in kw and choice == kw['default']:
-					help += " <default>"
-				help += "\n"
-		else:
-			help += "{default}"
-		return self.add_argument(*flags, type=type, choices=choices, help=help, **kw)
-
-	def add_number_arg(self, *flags, min=None, max=None, range=None, nargs='+', type=None, help="", **kw):
+	def add_number_arg(self, *args, **kw):
 		"""
 		Add a number argument to the parser.
 
@@ -142,6 +117,97 @@ class ArgParser(argparse.ArgumentParser):
 		>>> ap.add_number_arg('-l', '--list', min=0, nargs='+', type=int, help="A list of non-negative numbers")
 		>>> ap.add_number_arg('-c', '--color', range=(0, 255), nargs=3, metavar=("R", "G", "B"), help="A color in RGB format")
 		"""
+		return self.add_arg(NumberArg(*args, **kw))
+
+
+class Arg(ABC):
+	""" Base class for all arguments. """
+	def __init__(self, *flags, **kw):
+		if not flags and 'dest' not in kw:
+			raise ValueError("You must provide a destination name for flagless arguments")
+		self.flags = flags
+		self.kw = kw
+
+	def add_to_ap(self, parser):
+		""" Add this argument to the given parser. """
+		return parser.add_argument(*self.flags, **self.kw)
+
+
+class StrArg(Arg):
+	def __init__(self, *flags, **kw):
+		kw.setdefault('nargs', '?')
+		kw.setdefault('type', str)
+		super().__init__(*flags, **kw)
+
+
+class PathArg(Arg):
+	def __init__(self, *flags, **kw):
+		kw.setdefault('nargs', '?')
+		kw.setdefault('type', Path)
+		super().__init__(*flags, **kw)
+
+
+class BoolArg(Arg):
+	def __init__(self, *flags, default=False, help="", negative_help=None, **kw):
+		super().__init__(*flags, **kw)
+		self.short_flags = [flag for flag in flags if flag[0] == '-' and flag[1] != '-']
+		self.long_flags = [flag for flag in flags if flag[:2] == '--']
+		self.dest = kw.get('dest', (self.long_flags[0] if self.long_flags else flags[0]).strip('-').replace('-', '_'))
+
+		self.short_help = help + " (this toggles the default if no value is passed)" if help else help
+		self.yes_help = help
+		self.no_help = negative_help if negative_help is not None else "Do not " + help[0].lower() + help[1:] if help else help
+		if default:
+			self.yes_help += " <default>"
+		else:
+			self.no_help += " <default>"
+
+	def add_to_ap(self, parser):
+		group = parser.add_mutually_exclusive_group()
+		result = group.add_argument(*self.short_flags, dest=self.dest, nargs='?', default=self.default, const=not self.default, type=self._str_to_bool, help=self.short_help, **self.kw)
+		group.add_argument(*self.long_flags, dest=self.dest, action='store_true', help=self.yes_help, **self.kw)
+		group.add_argument(*map(self._no_f, self.long_flags), dest=self.dest, action='store_false', help=self.no_help, **self.kw)
+		return result
+
+	@staticmethod
+	def _no_f(arg):
+		return '--no-' + arg.strip('-')
+
+	@staticmethod
+	def _str_to_bool(s):
+		return s.lower() in {'true', 'yes', 't', 'y', '1'}
+
+
+#TODO: Make it possible to pass the choice descriptions as values too?
+class ChoiceArg(Arg):
+	def __init__(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
+		super().__init__(*flags, **kw)
+		if type is None:
+			try:
+				type = int if all(int(x) == x for x in choices) else float
+			except ValueError:
+				if all(isinstance(x, str) for x in choices):
+					type = str
+		if choice_descriptions:
+			longest = max(len(str(choice)) for choice in choices)
+			help += "\n"
+			for choice, description in zip(choices, choice_descriptions):
+				help += f"\t{choice:>{longest}}: {description}"
+				if 'default' in kw and choice == kw['default']:
+					help += " <default>"
+				help += "\n"
+		else:
+			help += "{default}"
+		self.kw['choices'] = choices
+		self.kw['type'] = type
+		self.kw['help'] = help
+
+
+class NumberArg(Arg):
+	def __init__(self, *flags, min=None, max=None, range=None, type=None, help="", **kw):
+		kw.setdefault('action', ListOrSingleAction)
+		kw.setdefault('nargs', '+')
+		super().__init__(*flags, **kw)
 
 		if range is not None:
 			min, max = range
@@ -164,7 +230,8 @@ class ArgParser(argparse.ArgumentParser):
 		elif min is not None:
 			help += f" [{min} <= {{metavar}} <= {max}]"
 
-		return self.add_argument(*flags, type=_type, action=ListOrSingleAction, nargs=nargs, help=help, **kw)
+		self.kw['type'] = _type
+		self.kw['help'] = help
 
 
 class HelpfulFormatter(argparse.RawTextHelpFormatter):
