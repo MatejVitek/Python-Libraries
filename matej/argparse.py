@@ -248,12 +248,16 @@ class ChoiceArg(Arg):
 		For other parameters, see the documentation of :meth:`Arg.__init__`.
 		"""
 		super().__init__(*flags, **kw)
-		if type is None:
+		self.choices = choices
+		self.choice_descriptions = choice_descriptions
+		self.type = type
+
+		if self.type is None:
 			try:
-				type = int if all(int(x) == x for x in choices) else float
+				self.type = int if all(int(x) == x for x in choices) else float
 			except ValueError as e:
 				if all(isinstance(x, str) for x in choices):
-					type = str
+					self.type = str
 				else:
 					raise TypeError("Could not infer the type of the choices. Please pass the `type` argument.") from e
 		if choice_descriptions:
@@ -266,8 +270,9 @@ class ChoiceArg(Arg):
 				help += "\n"
 		else:
 			help += "{default}"
-		self.kw['choices'] = choices
-		self.kw['type'] = type
+
+		self.kw['choices'] = self.choices
+		self.kw['type'] = self.type
 		self.kw['help'] = help
 
 
@@ -305,11 +310,12 @@ class NumberArg(Arg):
 		if range is not None:
 			min, max = range
 
-		if type is None:
-			type = int if min is not None and isinstance(min, int) and (max is None or isinstance(max, int)) or max is not None and isinstance(max, int) and min is None else float
+		self.type = type
+		if self.type is None:
+			self.type = int if min is not None and isinstance(min, int) and (max is None or isinstance(max, int)) or max is not None and isinstance(max, int) and min is None else float
 
 		def _type(x):
-			x = type(x)
+			x = self.type(x)
 			if min is not None and x < min:
 				raise argparse.ArgumentTypeError(f"{flags[0]} should be least {min}")
 			if max is not None and x > max:
