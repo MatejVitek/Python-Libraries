@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Iterator
+from collections.abc import Iterable, Mapping, Iterator, MutableMapping
 import itertools as it
 from functools import reduce
 import operator as op
@@ -95,6 +95,105 @@ def treedict():
 	return defaultdict(treedict)
 
 
+class SparseGrid(MutableMapping):
+	""" An n-dimensional grid saved in a sparse format. """
+
+	def __init__(self, dimensions=2):
+		self._dimensions = dimensions
+		self._grid = {}
+
+	def __getitem__(self, coords):
+		return self._grid[coords]
+
+	def __setitem__(self, coords, value):
+		if len(coords) != self._dimensions:
+			self._raise(coords)
+		self._grid[coords] = value
+
+	def __delitem__(self, coords):
+		del self._grid[coords]
+
+	def __len__(self):
+		return len(self._grid)
+
+	def __iter__(self):
+		return iter(self._grid.values())
+
+	def __contains__(self, value):
+		return value in self._grid.values()
+
+	def _raise(self, coords):
+		raise ValueError(f"Expected {self._dimensions} coordinates, got {len(coords)}: {coords}")
+
+	def __repr__(self):
+		return f"{type(self).__name__}({self._grid})"
+
+	def __str__(self):
+		return str(self._grid)
+
+	def coordinates(self):
+		return self._grid.keys()
+
+	def items(self):
+		return self._grid.items()
+
+
+class SparseMultiGrid(SparseGrid):
+	""" An `SparseGrid` that allows multiple values at the same coordinates. """
+
+	def __init__(self, dimensions=2):
+		super().__init__(dimensions)
+		self._grid = defaultdict(list)
+
+	def __getitem__(self, coords):
+		if len(coords) == self._dimensions + 1:
+			return self._grid[coords[:-1]][coords[-1]]
+		return super().__getitem__(coords)
+
+	def __setitem__(self, coords, value):
+		if len(coords) == self._dimensions:
+			raise NotImplementedError("Cannot set element in multi-grid. Use add method instead.")
+		elif len(coords) == self._dimensions + 1:
+			self._grid[coords[:-1]][coords[-1]] = value
+		else:
+			self._raise(coords)
+
+	def __delitem__(self, coords):
+		if len(coords) == self._dimensions + 1:
+			del self._grid[coords[:-1]][coords[-1]]
+		return super().__delitem__(coords)
+
+	def __len__(self):
+		return sum(len(v) for v in self._grid.values())
+
+	def __iter__(self):
+		return it.chain.from_iterable(self._grid.values())
+
+	def __contains__(self, value):
+		return any(value in v for v in self._grid.values())
+
+	def add(self, coords, value):
+		if len(coords) != self._dimensions:
+			self._raise(coords)
+		return self[coords].append(value)
+
+	def insert(self, coords, value, index=-1):
+		if len(coords) == self._dimensions + 1:
+			index = coords[-1]
+			coords = coords[:-1]
+		if len(coords) != self._dimensions:
+			self._raise(coords)
+		return self[coords].insert(index, value)
+
+	def remove(self, value):
+		for coords, values in self._grid.items():
+			if value in values:
+				values.remove(value)
+				if not values:
+					del self[coords]
+				return
+
+
 def dict_product(d):
 	"""
 	Cartesian product of all possible values for the corresponding keys.
@@ -136,17 +235,40 @@ for col, func in it.product((dict, list, set, tuple), (map, filter, zip, flatten
 
 
 if __name__ == '__main__':
-	print(sum_([1,2,3]))
-	print(sum_([1,2,3], init=5))
-	print(sum_([1,2,3], init=3, value_if_empty=None))
-	print(sum_([]))
-	print(sum_([], init=8))
-	print(sum_([], init=8, value_if_empty=12))
-	print(mul([1,2,3]))
-	print(mul([1,2,3], init=4))
-	print(mul([], init=4))
-	print(mul([], value_if_empty=6))
-	print(union([True, True, False]))
-	print(union([]))
-	print(intersection([True, True, False]))
-	print(intersection([]))
+	# print(sum_([1,2,3]))
+	# print(sum_([1,2,3], init=5))
+	# print(sum_([1,2,3], init=3, value_if_empty=None))
+	# print(sum_([]))
+	# print(sum_([], init=8))
+	# print(sum_([], init=8, value_if_empty=12))
+	# print(mul([1,2,3]))
+	# print(mul([1,2,3], init=4))
+	# print(mul([], init=4))
+	# print(mul([], value_if_empty=6))
+	# print(union([True, True, False]))
+	# print(union([]))
+	# print(intersection([True, True, False]))
+	# print(intersection([]))
+
+	g = ScarceGrid(3)
+	g[0,0,0] = 1
+	g[0,0,0] = 3
+	g[0,0,1] = 's'
+	print(g)
+	print(g[0,0,0])
+	print(g[0,0,1])
+
+	g = ScarceMultiGrid(3)
+	# g[0,0,0] = 1  # NotImplementedError
+	g.add((0,0,0), 1)
+	g.add((0,0,0), 3)
+	g.add((0,0,1), 's')
+	print(g)
+	print(g[0,0,0])
+	print(g[0,0,1])
+	print(g[0,0,1,0])
+	print(g[0,0,0,0])
+	print(g[0,0,0,-1])
+	g.remove(3)
+	g.remove('s')
+	print(g)
