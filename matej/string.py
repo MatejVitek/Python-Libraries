@@ -2,6 +2,8 @@ import re
 import string
 
 
+ALPHABET_LOWER = 'abcčćdđefghijklmnopqrsštuvwxyzž'
+ALPHABET_UPPER = ALPHABET_LOWER.upper()
 SLOVENE_LOWER = 'abcčdefghijklmnoprsštuvzž'
 SLOVENE_UPPER = SLOVENE_LOWER.upper()
 
