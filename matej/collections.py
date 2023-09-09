@@ -153,7 +153,7 @@ class SparseMultiGrid(SparseGrid):
 	def __setitem__(self, coords, value):
 		if len(coords) == self._dimensions:
 			raise NotImplementedError("Cannot set element in multi-grid. Use add method instead.")
-		elif len(coords) == self._dimensions + 1:
+		if len(coords) == self._dimensions + 1:
 			self._grid[coords[:-1]][coords[-1]] = value
 		else:
 			self._raise(coords)
@@ -161,7 +161,8 @@ class SparseMultiGrid(SparseGrid):
 	def __delitem__(self, coords):
 		if len(coords) == self._dimensions + 1:
 			del self._grid[coords[:-1]][coords[-1]]
-		return super().__delitem__(coords)
+		else:
+			return super().__delitem__(coords)
 
 	def __len__(self):
 		return sum(len(v) for v in self._grid.values())
