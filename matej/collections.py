@@ -106,7 +106,7 @@ class SparseGrid(MutableMapping):
 		return self._grid[coords]
 
 	def __setitem__(self, coords, value):
-		if len(coords) != self._dimensions:
+		if len(coords) != self.dimensions:
 			self._raise(coords)
 		self._grid[coords] = value
 
@@ -117,13 +117,13 @@ class SparseGrid(MutableMapping):
 		return len(self._grid)
 
 	def __iter__(self):
-		return iter(self._grid.values())
+		yield from self._grid.values()
 
 	def __contains__(self, value):
 		return value in self._grid.values()
 
 	def _raise(self, coords):
-		raise ValueError(f"Expected {self._dimensions} coordinates, got {len(coords)}: {coords}")
+		raise ValueError(f"Expected {self.dimensions} coordinates, got {len(coords)}: {coords}")
 
 	def __repr__(self):
 		return f"{type(self).__name__}({self._grid})"
@@ -131,11 +131,39 @@ class SparseGrid(MutableMapping):
 	def __str__(self):
 		return str(self._grid)
 
-	def coordinates(self):
+	@property
+	def dimensions(self):
+		return self._dimensions
+
+	# coordinates is the preferred callname but we provide the identical keys method too, since we need it for **-unpacking
+	def keys(self):
 		return self._grid.keys()
+	coordinates = keys
+
+	# And we provide values to be compatible with Mapping
+	def values(self):
+		return self._grid.values()
 
 	def items(self):
 		return self._grid.items()
+
+	def sort(self, key=None):
+		"""
+		Sort the elements.
+
+		Parameters
+		----------
+		key : callable, optional
+			Function used to determine the sort order.
+			It should accept a single tuple argument containing the coordinate tuple and the corresponding value.
+			By default, the coordinate sum is used. This way nearby coordinates are hopefully close in the final sorted order.
+		"""
+		self._grid = dict(sorted(self._grid.items(), key=key or self._sort_key))
+
+	@staticmethod
+	def _sort_key(coords_and_element):
+		coords, _ = coords_and_element
+		return sum(coords)
 
 
 class SparseMultiGrid(SparseGrid):
@@ -146,20 +174,20 @@ class SparseMultiGrid(SparseGrid):
 		self._grid = defaultdict(list)
 
 	def __getitem__(self, coords):
-		if len(coords) == self._dimensions + 1:
+		if len(coords) == self.dimensions + 1:
 			return self._grid[coords[:-1]][coords[-1]]
 		return super().__getitem__(coords)
 
 	def __setitem__(self, coords, value):
-		if len(coords) == self._dimensions:
+		if len(coords) == self.dimensions:
 			raise NotImplementedError("Cannot set element in multi-grid. Use add method instead.")
-		if len(coords) == self._dimensions + 1:
+		if len(coords) == self.dimensions + 1:
 			self._grid[coords[:-1]][coords[-1]] = value
 		else:
 			self._raise(coords)
 
 	def __delitem__(self, coords):
-		if len(coords) == self._dimensions + 1:
+		if len(coords) == self.dimensions + 1:
 			del self._grid[coords[:-1]][coords[-1]]
 		else:
 			return super().__delitem__(coords)
@@ -174,15 +202,15 @@ class SparseMultiGrid(SparseGrid):
 		return any(value in v for v in self._grid.values())
 
 	def add(self, coords, value):
-		if len(coords) != self._dimensions:
+		if len(coords) != self.dimensions:
 			self._raise(coords)
 		return self[coords].append(value)
 
 	def insert(self, coords, value, index=-1):
-		if len(coords) == self._dimensions + 1:
+		if len(coords) == self.dimensions + 1:
 			index = coords[-1]
 			coords = coords[:-1]
-		if len(coords) != self._dimensions:
+		if len(coords) != self.dimensions:
 			self._raise(coords)
 		return self[coords].insert(index, value)
 
@@ -193,6 +221,11 @@ class SparseMultiGrid(SparseGrid):
 				if not values:
 					del self[coords]
 				return
+
+	def sort(self, *args, **kw):
+		# We need to restore defaultdict functionality after sorting
+		super().sort(*args, **kw)
+		self._grid = defaultdict(list, self._grid)
 
 
 def dict_product(d):
@@ -251,19 +284,23 @@ if __name__ == '__main__':
 	# print(intersection([True, True, False]))
 	# print(intersection([]))
 
-	g = ScarceGrid(3)
+	g = SparseGrid(3)
+	g[0,0,1] = 's'
 	g[0,0,0] = 1
 	g[0,0,0] = 3
-	g[0,0,1] = 's'
+	print(g)
+	g.sort()
 	print(g)
 	print(g[0,0,0])
 	print(g[0,0,1])
 
-	g = ScarceMultiGrid(3)
+	g = SparseMultiGrid(3)
 	# g[0,0,0] = 1  # NotImplementedError
+	g.add((0,0,1), 's')
 	g.add((0,0,0), 1)
 	g.add((0,0,0), 3)
-	g.add((0,0,1), 's')
+	print(g)
+	g.sort()
 	print(g)
 	print(g[0,0,0])
 	print(g[0,0,1])
