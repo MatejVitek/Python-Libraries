@@ -138,6 +138,13 @@ class RunningStats:
 		else:
 			return self._cache[-n:]
 
+	def latex(self, *args, include_name=True, format_f=np.format_float_positional, **kw):
+		result = f"{self.name} & " if include_name else ""
+		mean = format_f(self.mean, *args, **kw)
+		std = format_f(self.std, *args, **kw)
+		result += "$" + (fr"{mean} \pm {std}" if self.std else mean) + "$"
+		return result
+
 	def __str__(self):
 		if self.std:
 			#return f"{self.name} (\u03BC \u00B1 \u03C3): {self.mean} \u00B1 {self.std}"
