@@ -1,19 +1,54 @@
+{% set data = load_setup_py_data() %}
+
 package:
-     name: matej-libs
-     version: "1.0"
+	name: {{ data['name'] }}
+	version: {{ data['version'] }}
 
 source:
-     path: .
-     git_path: https://github.com/MatejVitek/Python-Libraries.git
+	path: .
+	git_path: https://github.com/MatejVitek/Python-Libraries.git
 
 build:
-     script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
+	script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
 
 requirements:
-     build:
-         - python
-         - setuptools
-     run:
-         - joblib
-         - numpy
-         - tqdm
+	build:
+		- python
+		- setuptools
+	run:
+		- python {{ data['python_requires'] }}
+		- joblib
+		- numpy
+		- tqdm
+		- requests
+		- ruamel.yaml
+
+about:
+	home: https://github.com/MatejVitek/Python-Libraries
+	license: GPL-3.0
+	license_file: LICENSE
+	summary: Collection of Python utility libraries.
+
+
+
+from setuptools import setup, find_packages
+
+version = "0.1.1"
+
+setup(
+	name='matej-libs',
+	version=version,
+	author="Matej Vitek",
+	author_email="matej.vitek.business@gmail.com",
+	description="Collection of Python utility libraries.",
+	long_description=open('README.md', encoding='utf-8').read(),
+	url='',
+	packages=find_packages(),
+	python_requires='>=3.8',
+	install_requires=['numpy'],
+	extras_require={
+		'google-drive': ['requests'],
+		'config': ['ruamel.yaml'],
+		'parallel': ['joblib']
+	}
+)
