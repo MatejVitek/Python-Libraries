@@ -60,3 +60,54 @@ class Singleton(type):
 		if cls not in cls._instances:
 			cls._instances[cls] = super().__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+
+#TODO: Is this possible to do in a robust way?
+class MultiSubclassMeta(type):
+	"""
+	A metaclass that lets parent classes with different __new__/__init__ arguments play nicely.
+
+	When creating a new instance of this class a simple call to this class' constructor will try to match the arguments of the call
+	to each of the 5 methods above (for `_init`, `_connect_signals` and `_init_ui_values` only if they are defined in the subclass).
+	Below is a detailed description of how this argument matching works, but for the most part you shouldn't have to worry about this
+	if you define your methods and call this class' constructor in a reasonable way. The best way to achieve intuitive, predictable,
+	and reliable behaviour is to pass all arguments into the constructor as keywords. Passing them as keywords also allows you to pass
+	the same argument to multiple initialisation methods, as long as its name matches in all of them.
+
+	The argument matching procedure uses the following order of methods: `_init`, `_init_ui`, `_connect_signals`, `_init_ui_values`, `super().__init__`.
+	Note that this order is different to the order in which the methods are actually called, which is described in the bullet list above
+	(the difference is that for argument matching the superclass' `__init__` method is considered last, while in the calling order it appears first).
+	The argument matching procedure works as follows:
+
+	- Determine *how many* positional `*args` go to each method in 5 stages:
+	  - First, enough `*args` must be reserved for positional-only parameters of all methods in order. If there aren't enough `*args` for this, raise Error.
+	  - Second, reserve enough `*args` for positional-or-keyword arguments that don't appear in the passed `**kwargs` and don't have default values.
+		Again, if there aren't enough remaining `*args` for this, raise an Error.
+		If any of them are after the first positional-or-keyword argument that *does* appear in the passed `**kwargs`, also raise an Error.
+	  - Third, if there are still `*args` left over, reserve enough for positional-or-keyword arguments with default values
+		up to the first one that appears in the passed `**kwargs`.
+	  - Finally, if `*args` are still not exhausted, as many as remain will be passed to the first method with `*args` in its signature.
+		Note that only methods whose positional-or-keyword arguments don't appear in the passed `**kwargs` will be considered.
+		If no such method is found, raise an Error.
+	- Note that these stages are only used to determine the *number* of arguments passed, not *which* arguments are passed.
+	  Since we now know how many positional arguments should be passed to each method, simply iterate over the methods in order
+	  and pass that many `*args` to it, removing the passed arguments from `*args` in the process.
+	- Finally, determine the keyword arguments that should be passed to each method. If the method has `**kwargs` in its signature, simply pass
+	  all passed keyword arguments to it and let the method sort them out. Otherwise all the passed `**kwargs` that appear in the method's
+	  signature will be passed to the method. This way multiple methods can be passed the same keyword argument.
+
+	Usage:
+	>>> class A:
+	... 	def __init__(self, a):
+	... 		self.a = a
+	>>> class B:
+	... 	def __init__(self, b):
+	... 		self.b = b
+	>>> class C(A, B, metaclass=MultiSubclassMeta):
+	... 	pass
+	>>> c = C(1, 2)
+	>>> c.a
+	1
+	>>> c.b
+	2
+	"""
