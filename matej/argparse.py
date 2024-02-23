@@ -365,6 +365,9 @@ class HelpfulFormatter(argparse.RawTextHelpFormatter):
 
 class StoreDictPairsAction(argparse.Action):
 	""" Custom action to store key-value pairs in a dictionary. """
+	def __init__(self, option_strings, dest, nargs=None, *args, metavar="KEY VALUE", **kw):
+		super().__init__(option_strings, dest, nargs='+', *args, metavar=metavar, **kw)
+
 	def __call__(self, parser, namespace, values, option_string=None):
 		d = getattr(namespace, self.dest)
 		if d is None:
@@ -394,6 +397,7 @@ class ListOrSingleAction(argparse.Action):
 		setattr(namespace, self.dest, values)
 
 
+#TODO: Move this shit to tests like a proper Python developer
 if __name__ == '__main__':
 	ap = ArgParser()
 
