@@ -33,7 +33,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_str_arg(self, *args, **kw):
 		"""
-		Auxiliary method for adding a :class:`StrArg` to the parser. See the documentation of :class:`StrArg` for details.
+		Convenience method for adding a :class:`StrArg` to the parser. See the documentation of :class:`StrArg` for details.
 
 		Examples
 		--------
@@ -44,7 +44,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_path_arg(self, *args, **kw):
 		"""
-		Auxiliary method for adding a :class:`PathArg` to the parser. See the documentation of :class:`PathArg` for details.
+		Convenience method for adding a :class:`PathArg` to the parser. See the documentation of :class:`PathArg` for details.
 
 		Examples
 		--------
@@ -55,7 +55,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_bool_arg(self, *args, **kw):
 		"""
-		Auxiliary method for adding a :class:`BoolArg` to the parser. See the documentation of :class:`BoolArg` for details.
+		Convenience method for adding a :class:`BoolArg` to the parser. See the documentation of :class:`BoolArg` for details.
 
 		Examples
 		--------
@@ -66,7 +66,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_choice_arg(self, *args, **kw):
 		"""
-		Auxiliary method for adding a :class:`ChoiceArg` to the parser. See the documentation of :class:`ChoiceArg` for details.
+		Convenience method for adding a :class:`ChoiceArg` to the parser. See the documentation of :class:`ChoiceArg` for details.
 
 		Examples
 		--------
@@ -77,7 +77,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_number_arg(self, *args, **kw):
 		"""
-		Auxiliary method for adding a :class:`NumberArg` to the parser. See the documentation of :class:`NumberArg` for details.
+		Convenience method for adding a :class:`NumberArg` to the parser. See the documentation of :class:`NumberArg` for details.
 
 		Examples
 		--------
@@ -117,48 +117,48 @@ class Arg(ABC):
 		return parser.add_argument(*self.flags, **kw)
 
 
-class StrArg(Arg):
-	""" String argument. """
-	def __init__(self, *flags, **kw):
+class NullableArg(Arg, ABC):
+	""" Base class for arguments that may allow `None` values. """
+	def __init__(self, *flags, nullable=None, null_phrases=('', 'none'), **kw):
 		"""
 		Initialise the argument.
 
-		By default this argument is optional and accepts a single string as its value.
-
 		Parameters
 		----------
-		nargs : int or str, default='?'
-			Number of arguments to accept. See the documentation of :meth:`argparse.ArgumentParser.add_argument` for details.
-		type : type, default=str
-			Type of the argument.
-
-		For other parameters, see the documentation of :meth:`Arg.__init__`.
+		nullable : Optional[bool]
+			Whether the argument can be `None`. If not provided, will be `False`, unless `default` is passed as `None`.
+		null_phrases : Collection[str], default=('', 'none')
+			Phrases that will be interpreted as `None` if the argument is nullable (case-insensitive).
 		"""
+		self.nullable = nullable
+		self.null_phrases = null_phrases
+		if nullable is None:
+			self.nullable = kw.get('default') is None
+		if 'default' in kw and kw['default'] is None:
+			if self.nullable is False:
+				raise ValueError("Cannot have a None default value for a non-nullable argument")
+			self.nullable = True
+		kw.setdefault('type', self._type)
 		kw.setdefault('nargs', '?')
-		kw.setdefault('type', str)
 		super().__init__(*flags, **kw)
 
+	def __init_subclass__(cls, type=str):
+		super().__init_subclass__()
+		cls.type = type
 
-class PathArg(Arg):
-	""" Path argument. """
-	def __init__(self, *flags, **kw):
-		"""
-		Initialise the argument.
+	def _type(self, s):
+		if self.nullable and (s is None or s.strip().lower() in self.null_phrases):
+			return None
+		return self.type(s)
 
-		By default this argument is optional and accepts a single path as its value.
 
-		Parameters
-		----------
-		nargs : int or str, default='?'
-			Number of arguments to accept. See the documentation of :meth:`argparse.ArgumentParser.add_argument` for details.
-		type : type, default=Path
-			Type of the argument.
+class StrArg(NullableArg):
+	""" String argument. By default this argument is optional and accepts a single string as its value. """
+	pass
 
-		For other parameters, see the documentation of :meth:`Arg.__init__`.
-		"""
-		kw.setdefault('nargs', '?')
-		kw.setdefault('type', Path)
-		super().__init__(*flags, **kw)
+
+class PathArg(NullableArg, type=Path):
+	""" Path argument. By default this argument is optional and accepts a single path as its value. """
 
 
 class BoolArg(Arg):
@@ -225,6 +225,7 @@ class BoolArg(Arg):
 
 
 #TODO: Make it possible to pass the choice descriptions as values too?
+#TODO: Make nullable
 class ChoiceArg(Arg):
 	""" Choice argument. """
 	def __init__(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
@@ -276,6 +277,7 @@ class ChoiceArg(Arg):
 		self.kw['help'] = help
 
 
+#TODO: Make nullable (?)
 class NumberArg(Arg):
 	""" Number argument. """
 	def __init__(self, *flags, min=None, max=None, range=None, type=None, help="", **kw):
