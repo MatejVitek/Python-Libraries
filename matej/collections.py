@@ -26,9 +26,10 @@ intersection = _reductify(op.and_, ONE)
 
 
 def is_iterable(x, noniterable_types=None):
+	# True/False functionality for backward compatibility
 	if noniterable_types is True:
 		noniterable_types = (str, bytes)
-	if noniterable_types is not None and isinstance(x, noniterable_types):
+	if noniterable_types not in (None, False) and isinstance(x, noniterable_types):
 		return False
 	try:
 		for _ in x:
@@ -59,11 +60,11 @@ def flatten(l, flatten_strings=False, flatten_dicts=True, flatten_generators=Tru
 	for x in l:
 		if (
 			is_iterable(x)
-		    and (flatten_strings or not isinstance(x, (str, bytes)))
+		    and ((flatten_strings and len(x) > 1) or not isinstance(x, (str, bytes)))
 		    and (flatten_dicts or not isinstance(x, Mapping))
 		    and (flatten_generators or not isinstance(x, Iterator))
 		):
-			yield from flatten(x)
+			yield from flatten(x, flatten_strings, flatten_dicts, flatten_generators)
 		else:
 			yield x
 
