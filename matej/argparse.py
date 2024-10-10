@@ -154,7 +154,6 @@ class NullableArg(Arg, ABC):
 
 class StrArg(NullableArg):
 	""" String argument. By default this argument is optional and accepts a single string as its value. """
-	pass
 
 
 class PathArg(NullableArg, type=Path):
