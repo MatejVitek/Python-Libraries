@@ -19,3 +19,34 @@ def make_module_callable(module_name, f):
 		def __call__(self, *args, **kw):
 			return f(*args, **kw)
 	sys.modules[module_name].__class__ = _CallableModule
+
+
+def varargs(f):
+	""" Decorator that lets a function with varargs also accept a single iterable argument. """
+	from inspect import signature
+	from matej.collections import is_iterable
+	args = signature(f).parameters
+
+	@ft.wraps(f)
+	def wrapper(*args, **kwargs):
+		if len(args) == 1 and is_iterable(args[0]):
+			return f(*args[0], **kwargs)
+		return f(*args, **kwargs)
+	return wrapper
+
+
+if __name__ == '__main__':
+	@varargs
+	def test(*arglist, kwarg=None):
+		print(arglist, kwarg)
+
+	test([1, 2, 3])
+	test(1, 2, 3)
+
+	@varargs
+	def test2(arg, *arglist, kwarg=None):
+		print(arg, arglist, kwarg)
+
+	test2([1, 2, 3], [4, 5, 6])
+	test2(1, 2, 3, 4, 5, 6)
+	test2([1, 2, 3])
