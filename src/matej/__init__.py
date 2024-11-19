@@ -17,9 +17,20 @@
 # 			pass
 # sys.path = _old_path
 
+
 from contextlib import contextmanager
+import importlib.metadata
 import os
 import sys
+
+
+try:
+	__version__ = importlib.metadata.version(__package__ or __name__)
+except importlib.metadata.PackageNotFoundError:
+	from pathlib import Path
+	import re
+	with (Path(__file__).resolve().parent.parent.parent/'pyproject.toml').open('r', encoding='utf-8') as f:
+		__version__ = re.search(r'version\s*=\s*[\'"]?([^\'"]*)[\'"]?', f.read()).group(1)
 
 
 @contextmanager
@@ -67,6 +78,7 @@ class MultiSubclassMeta(type):
 	"""
 	A metaclass that lets parent classes with different __new__/__init__ arguments play nicely.
 
+	# The below stuff is copied from my old PyQt generic Widget class, which had this similar functionality. It's just for reference.
 	When creating a new instance of this class a simple call to this class' constructor will try to match the arguments of the call
 	to each of the 5 methods above (for `_init`, `_connect_signals` and `_init_ui_values` only if they are defined in the subclass).
 	Below is a detailed description of how this argument matching works, but for the most part you shouldn't have to worry about this

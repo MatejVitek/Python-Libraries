@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matej-libs"
+version = "0.12.1"
+authors = [{name = "Matej Vitek", email = "matej.vitek.business@gmail.com"}]
+requires-python = ">=3.12"
+dependencies = ["numpy"]
+description = "Collection of Python utility libraries."
+readme = "README.md"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+	"Operating System :: OS Independent",
+	"Development Status :: 3 - Alpha",
+	"Intended Audience :: Developers",
+]
+
+[project.optional-dependencies]
+google-drive = ["requests"]
+config = ["ruamel.yaml"]
+parallel = ["joblib"]
+
+[project.urls]
+Homepage = "https://github.com/MatejVitek/Python-Libraries"

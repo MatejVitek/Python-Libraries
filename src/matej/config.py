@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from matej.collections import flatten, lmap, is_iterable
+from matej.collections import flatten, tmap, is_iterable
 from matej.string import multi_replace
 
 
@@ -325,7 +325,7 @@ class Config(SimpleNamespace, MutableMapping):
 			with open(yaml_file, 'r', encoding='utf-8') as f:
 				return cls.from_yaml(f, **kw)
 		yaml = cls._create_yaml_handler(**kw)
-		configs = lmap(cls, yaml.load_all(yaml_file))
+		configs = tmap(cls, yaml.load_all(yaml_file))
 		return configs if len(configs) > 1 else configs[0]
 
 	@staticmethod

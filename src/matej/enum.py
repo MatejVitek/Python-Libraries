@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum, EnumMeta
 from functools import lru_cache, total_ordering
 
-from matej.collections import lmap, sum_
+from matej.collections import tmap, sum_
 
 
 # Ordered Enums courtesy of https://blog.yossarian.net/2020/03/02/Totally-ordered-enums-in-python-with-ordered_enum
@@ -184,7 +184,7 @@ class Lazy:
 		self.args = lazy_init_arguments
 
 	def __str__(self):
-		return f"Lazy({self.args[0] if len(self.args) == 1 else lmap(str, self.args)})"
+		return f"Lazy({self.args[0] if len(self.args) == 1 else tmap(str, self.args)})"
 
 
 class LazyEagerEnum(LazyEnum):
