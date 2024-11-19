@@ -77,6 +77,8 @@ def flatten(l, flatten_strings=False, flatten_dicts=True, flatten_generators=Tru
 
 
 class DotDict(dict):
+	""" A dictionary that allows attribute access to its items. """
+
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		for key, val in self.items():
@@ -102,6 +104,77 @@ class TreeDict(defaultdict):
 	""" Recursive :class:`defaultdict` implementation. """
 	def __init__(self, **kw):
 		super().__init__(type(self), **kw)
+
+
+class BiDict(MutableMapping):
+	""" A bidirectional dictionary. """
+
+	def __init__(self, *args, **kw):
+		self.dict = dict(*args, **kw)
+		self.inverse = {v: k for k, v in self.dict.items()}
+
+	def __contains__(self, key):
+		return key in self.dict or key in self.inverse
+
+	def __getitem__(self, key):
+		return self.dict[key] if key in self.dict else self.inverse[key]
+
+	def __setitem__(self, key, value):
+		self.dict[key] = value
+		self.inverse[value] = key
+
+	def __delitem__(self, key):
+		del self.inverse[self.dict[key]]
+		del self.dict[key]
+
+	def __iter__(self):
+		return iter(self.dict)
+
+	def __len__(self):
+		return len(self.dict)
+
+	def __repr__(self):
+		return f"{type(self).__name__}({self.dict})"
+
+	def __str__(self):
+		return str(self.dict).replace(": ", " ↔ ")
+
+	def items(self):
+		return self.dict.items()
+
+	def keys(self):
+		return self.dict.keys()
+
+	def values(self):
+		return self.dict.values()
+
+	def set(self, key, value):
+		""" Set a key-value pair, checking for existing keys in `self.inverse` too. """
+		if key in self.inverse and not key in self.dict:
+			self[value] = key
+		else:
+			self[key] = value
+
+	def del_(self, key):
+		""" Delete a key-value pair, checking for existing keys in `self.inverse` too. """
+		if key in self.inverse and not key in self.dict:
+			del self[self.inverse[key]]
+		else:
+			del self[key]
+
+
+def dict_product(d):
+	"""
+	Cartesian product of all possible values for the corresponding keys.
+
+	Example::
+
+		>>> list(dict_product({'a': [1, 2], 'b': [3, 4]}))
+		[{'a': 1, 'b': 3}, {'a': 1, 'b': 4}, {'a': 2, 'b': 3}, {'a': 2, 'b': 4}]
+	"""
+
+	for x in it.product(*d.values()):
+		yield dzip(d, x)
 
 
 class SparseGrid(MutableMapping):
@@ -237,20 +310,6 @@ class SparseMultiGrid(SparseGrid):
 		# We need to restore defaultdict functionality after sorting
 		super().sort(*args, **kw)
 		self._grid = defaultdict(list, self._grid)
-
-
-def dict_product(d):
-	"""
-	Cartesian product of all possible values for the corresponding keys.
-
-	Example::
-
-		>>> list(dict_product({'a': [1, 2], 'b': [3, 4]}))
-		[{'a': 1, 'b': 3}, {'a': 1, 'b': 4}, {'a': 2, 'b': 3}, {'a': 2, 'b': 4}]
-	"""
-
-	for x in it.product(*d.values()):
-		yield dzip(d, x)
 
 
 # dmap, lmap, lfilter, etc. which are equivalent to dict(map(...)), list(map(...)), list(filter(...)), etc.
