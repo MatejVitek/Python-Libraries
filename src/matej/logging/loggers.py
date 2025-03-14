@@ -1,6 +1,7 @@
 import atexit
 import logging
 import logging.handlers
+import sys
 import warnings
 
 
@@ -21,9 +22,49 @@ class _LoggerMeta(type):
 		return logger
 
 
+class _StreamRedirector:
+	def __init__(self, logger, level):
+		self.logger = logger
+		self.level = level
+		self.buf = []
+
+	#TODO: If messages are printed out with too many new lines or other strange stuff is happening, then I should
+	#      do nothing in flush() and log stuff in write() instead.
+	def write(self, msg):
+		if msg.endswith("\n"):
+			self.buf.append(msg.removesuffix("\n"))
+			self.flush()
+		else:
+			self.buf.append(msg)
+
+	def flush(self):
+		if self.buf:
+			self.logger.log(self.level, "".join(self.buf))
+			self.buf = []
+
+
 class Logger(logging.Logger, metaclass=_LoggerMeta):
-	""" A simple `logging.Logger` that can also be used as a base class for custom loggers. """
-	def __init__(self, name=None, *handlers):
+	"""	A simple `logging.Logger` that can also be used as a base class for custom loggers. """
+
+	def __init__(self, name=None, *handlers, redirect_stdout=False, redirect_stderr=False):
+		"""
+		Initialise the logger with the given name and handlers.
+
+		Parameters:
+		-----------
+		name : str, optional
+			The name of the logger. If not provided, the name of the module calling the logger will be used.
+		handlers : Collection[logging.Handler], optional
+			Handlers to add to the logger.
+		redirect_stdout : bool or int, optional
+			The level at which messages from stdout should be logged.
+			If `False`, stdout will not be redirected.
+			If `True`, stdout messages will be logged at the `logging.INFO` level.
+		redirect_stderr : bool or int, optional
+			The level at which messages from stderr should be logged.
+			If `False`, stderr will not be redirected.
+			If `True`, stderr messages will be logged at the `logging.ERROR` level.
+		"""
 		if name is None:
 			import inspect
 			name = inspect.getmodule(inspect.stack()[1][0]).__name__
@@ -32,9 +73,40 @@ class Logger(logging.Logger, metaclass=_LoggerMeta):
 		for handler in handlers:
 			self.addHandler(handler)
 
+		self._old_stdout = None
+		if redirect_stdout:
+			if redirect_stdout is True:
+				redirect_stdout = logging.INFO
+			self._old_stdout = sys.stdout
+			sys.stdout = _StreamRedirector(self, redirect_stdout)
+
+		self._old_stderr = None
+		if redirect_stderr:
+			if redirect_stderr is True:
+				redirect_stderr = logging.ERROR
+			self._old_stderr = sys.stderr
+			sys.stderr = _StreamRedirector(self, redirect_stderr)
+
+
+	def restore_output_streams(self):
+		""" Restore the original stdout and stderr streams. """
+		if self._old_stdout is not None:
+			sys.stdout = self._old_stdout
+		if self._old_stderr is not None:
+			sys.stderr = self._old_stderr
+
+	def __del__(self):
+		try:
+			self.restore_output_streams()
+		except AttributeError:
+			sys.stdout = sys.__stdout__
+			sys.stderr = sys.__stderr__
+		return super().__del__()
+
 
 class QueueLogger(Logger):
 	""" A `logging.Logger` that utilises queue-based logging with an arbitrary number of handlers. """
+
 	def __init__(self, name=None, *handlers, multiprocessing_=False, respect_handler_level=True, **kw):
 		super().__init__(name, **kw)
 		# Set up the queue and the queue handler
