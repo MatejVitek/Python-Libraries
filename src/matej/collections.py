@@ -172,7 +172,6 @@ def dict_product(d):
 		>>> list(dict_product({'a': [1, 2], 'b': [3, 4]}))
 		[{'a': 1, 'b': 3}, {'a': 1, 'b': 4}, {'a': 2, 'b': 3}, {'a': 2, 'b': 4}]
 	"""
-
 	for x in it.product(*d.values()):
 		yield dzip(d, x)
 

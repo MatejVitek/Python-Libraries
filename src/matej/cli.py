@@ -14,7 +14,6 @@ def query_yes_no(question, default=None):
 		The default answer if the user just presses Enter.
 		If `None`, the user must provide an explicit answer.
 	"""
-
 	valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
 	if default not in (None, True, False):
 		default = valid[default]

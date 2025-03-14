@@ -35,7 +35,6 @@ def exists(key: Union[str, Path], value_name: Optional[str] = None) -> bool:
 	-------
 		`True` if value exists in specified key, `False` otherwise.
 	"""
-
 	hive, path = _parse(key)
 	with suppress(OSError), reg.OpenKey(hive, str(path)) as key:
 		if value_name is not None:
@@ -46,7 +45,7 @@ def exists(key: Union[str, Path], value_name: Optional[str] = None) -> bool:
 
 def get_value(key: Union[str, Path], value_name: str = '', return_type: bool = False) -> Union[Optional[Union[str, int]], Tuple[Optional[Union[str, int]], Optional[int]]]:
 	"""
-	Gets the specified value from the specified key.
+	Get the specified value from the specified key.
 
 	Parameters
 	----------
@@ -63,7 +62,6 @@ def get_value(key: Union[str, Path], value_name: str = '', return_type: bool = F
 		If `return_type` is `True`, instead returns a tuple of the value and its type,
 		or `(None, None)` if the value does not exist.
 	"""
-
 	hive, path = _parse(key)
 	with suppress(OSError), reg.OpenKey(hive, str(path)) as key:
 		value, value_type = reg.QueryValueEx(key, value_name)
@@ -73,7 +71,7 @@ def get_value(key: Union[str, Path], value_name: str = '', return_type: bool = F
 
 def set_value(key: Union[str, Path], value_name: str = '', value: Union[str, int] = '', value_type: Union[str, int] = 'REG_SZ', create_keys: Optional[bool] = None):
 	"""
-	Sets the specified value at the specified key.
+	Set the specified value at the specified key.
 
 	Parameters
 	----------
@@ -116,7 +114,7 @@ def set_value(key: Union[str, Path], value_name: str = '', value: Union[str, int
 
 def delete_value(key: Union[str, Path], value_name: str = ''):
 	"""
-	Deletes the specified value.
+	Delete the specified value.
 
 	Parameters
 	----------
@@ -130,7 +128,6 @@ def delete_value(key: Union[str, Path], value_name: str = ''):
 	OSError
 		If the specified value was not found or could not be deleted for some reason (such as permission errors).
 	"""
-
 	hive, path = _parse(key)
 	with reg.OpenKey(hive, str(path), access=reg.KEY_WRITE) as key:
 		reg.DeleteValue(key, value_name)
@@ -138,7 +135,7 @@ def delete_value(key: Union[str, Path], value_name: str = ''):
 
 def delete_key(key: Union[str, Path], recursive: bool = False):
 	"""
-	Deletes the specified key (and its values), which must not contain subkeys (unless `recursive=True` is passed).
+	Delete the specified key (and its values), which must not contain subkeys (unless `recursive=True` is passed).
 
 	Parameters
 	----------
@@ -154,7 +151,6 @@ def delete_key(key: Union[str, Path], recursive: bool = False):
 		If the specified key was not found or contained subkeys (with `recursive=False`),
 		or could not be deleted for some other reason (such as permission errors).
 	"""
-
 	path = Path(key)
 	if recursive:
 		for subkey in subkeys(path):
@@ -165,7 +161,7 @@ def delete_key(key: Union[str, Path], recursive: bool = False):
 
 def subkeys(key: Union[str, Path]) -> Iterator[str]:
 	"""
-	Iterates over subkeys of a registry key.
+	Iterate over subkeys of a registry key.
 
 	Parameters
 	----------
@@ -176,7 +172,6 @@ def subkeys(key: Union[str, Path]) -> Iterator[str]:
 	-------
 		An iterator over all the subkey names of the specified key.
 	"""
-
 	hive, path = _parse(key)
 	with suppress(OSError), reg.OpenKey(hive, str(path)) as key:
 		for i in it.count():

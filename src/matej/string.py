@@ -46,7 +46,6 @@ def alphasort(l, alphabet=string.ascii_lowercase, *args, whitespace=-2, digits=-
 	List[str]
 		Sorted list of strings.
 	"""
-
 	prefixes = sorted((i, extra) for i, extra in ((digits, string.digits), (punctuation, string.punctuation), (whitespace, string.whitespace)) if i < 0)
 	suffixes = sorted((i, extra) for i, extra in ((digits, string.digits), (punctuation, string.punctuation), (whitespace, string.whitespace)) if i > 0)
 	alphabet = ''.join(extra for _, extra in prefixes) + alphabet + ''.join(extra for _, extra in suffixes)

@@ -13,5 +13,6 @@ class Parallel(nn.Sequential):
 
 class NoneTransform:
 	""" Dummy transform that does nothing. """
+
 	def __call__(self, x):
 		return x

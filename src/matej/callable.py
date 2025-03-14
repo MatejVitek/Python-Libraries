@@ -19,9 +19,7 @@ class partial(ft.partial):
 
 #TODO: Test this shit, I have no idea if it works
 class partialmethod(ft.partialmethod):
-	"""
-	An improved version of partialmethod which accepts `...` as a placeholder for a missing positional argument.
-	"""
+	""" An improved version of partialmethod which accepts `...` as a placeholder for a missing positional argument. """
 
 	def _make_unbound_method(self):
 		def _method(cls_or_self, /, *args, **kw):
@@ -46,7 +44,6 @@ def compose(*functions):
 
 	All functions, aside from the last one (`h` in the above example), must take exactly one argument.
 	"""
-
 	return ft.reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), functions)
 
 
