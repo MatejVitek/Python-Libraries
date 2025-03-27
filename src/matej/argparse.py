@@ -153,6 +153,7 @@ class Arg(ABC):
 		value : Any
 			Passed argument value.
 		"""
+		value = ' '.join(f'"{v}"' if any(c.isspace() for c in str(v)) else str(v) for v in ensure_iterable(value, True))
 		return f'{self.name_flag} {value}'
 
 
