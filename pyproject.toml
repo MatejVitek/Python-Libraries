@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "matej-libs"
-version = "0.12.1"
+version = "0.12.2"
 authors = [{name = "Matej Vitek", email = "matej.vitek.business@gmail.com"}]
 requires-python = ">=3.12"
 dependencies = ["numpy"]
@@ -17,6 +17,9 @@ classifiers = [
 	"Development Status :: 3 - Alpha",
 	"Intended Audience :: Developers",
 ]
+
+[tool.setuptools]   #TODO: This is needed until they fix twine packaging and uploading.
+license-files = []  #      Try removing on next build.
 
 [project.optional-dependencies]
 google-drive = ["requests"]

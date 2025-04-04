@@ -22,8 +22,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def __init__(self, *args, **kw):
 		""" Initialise the parser. See the documentation of :class:`argparse.ArgumentParser` for more information. """
-		if 'formatter_class' not in kw:
-			kw['formatter_class'] = HelpfulFormatter
+		kw.setdefault('formatter_class', HelpfulFormatter)
 		super().__init__(*args, **kw)
 		self.register('action', 'store_dict', StoreDictPairsAction)
 
@@ -103,7 +102,8 @@ class Arg(ABC):
 		Parameters
 		----------
 		flags : Collection[str]
-			Optional flags for the argument. If no flags are provided, the `dest` keyword argument must be provided.
+			Optional flags for the argument.
+			If no flags are provided, the `dest` keyword argument must be provided instead. In this case, the argument will be positional.
 		**kw
 			Keyword arguments to pass to the :meth:`argparse.ArgumentParser.add_argument` method.
 		"""
@@ -158,7 +158,7 @@ class Arg(ABC):
 
 
 class NullableArg(Arg, ABC):
-	""" Base class for arguments that may allow `None` values. """
+	""" Base class for arguments that may allow `None` as a valid value. """
 
 	def __init__(self, *flags, nullable=None, null_phrases=('', 'none'), **kw):
 		"""
@@ -279,8 +279,8 @@ class BoolArg(Arg):
 
 
 #TODO: Make it possible to pass the choice descriptions as values too?
-#TODO: Make nullable
-class ChoiceArg(Arg):
+#TODO: Add case-sensitive parameter; defaults to False if choices are all different in lowercase and True otherwise (if passed True but choices are not all different in lowercase, exact matching should be checked first, then case-insensitive): https://stackoverflow.com/a/53078235/5769814
+class ChoiceArg(NullableArg):
 	""" Choice argument. """
 	def __init__(self, choices, *flags, choice_descriptions=(), type=None, help="", **kw):
 		"""
@@ -302,16 +302,18 @@ class ChoiceArg(Arg):
 
 		For other parameters, see the documentation of :meth:`Arg.__init__`.
 		"""
+		kw.setdefault('nullable', any(c is None for c in choices))
 		super().__init__(*flags, **kw)
+
 		self.choices = choices
 		self.choice_descriptions = choice_descriptions
 		self.type = type
 
 		if self.type is None:
 			try:
-				self.type = int if all(int(x) == x for x in choices) else float
+				self.type = int if all(int(x) == x for x in choices if x is not None) else float
 			except ValueError as e:
-				if all(isinstance(x, str) for x in choices):
+				if all(isinstance(x, str) for x in choices if x is not None):
 					self.type = str
 				else:
 					raise TypeError("Could not infer the type of the choices. Please pass the `type` argument.") from e
@@ -326,19 +328,18 @@ class ChoiceArg(Arg):
 		else:
 			help += "{default}"
 
-		self.kw['choices'] = self.choices
-		self.kw['type'] = self.type
+		self.kw['choices'] = choices
 		self.kw['help'] = help
 
 
-#TODO: Make nullable (?)
+#TODO: Make nullable (?) -- what do I do with multiple values in that case? One of them can be None or the entire tuple can be None?
 class NumberArg(Arg):
 	""" Number argument. """
 	def __init__(self, *flags, min=None, max=None, range=None, type=None, help="", **kw):
 		"""
 		Initialise the argument.
 
-		The argument can receive multiple values (in which case it will be stored as a list). This can be explicitly restricted by passing `nargs=1` to this method.
+		The argument can receive multiple values (if it does, they will be stored as a list). This can be explicitly restricted by passing `nargs=1` to this method.
 
 		Parameters
 		----------

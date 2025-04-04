@@ -2,6 +2,7 @@ import ctypes
 import sys
 
 
+# Is this really needed? It's available in the rich module.
 def query_yes_no(question, default=None):
 	"""
 	Ask a yes/no question and return the user's answer.
@@ -37,6 +38,7 @@ def query_yes_no(question, default=None):
 			print("Please respond with 'yes' or 'no'.")
 
 
+#TODO: Implement this for Linux
 def run_as_admin(ask=False, default=True, query=None):
 	"""
 	Run the current script with administrator privileges.
