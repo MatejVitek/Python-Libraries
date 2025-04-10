@@ -2,14 +2,14 @@ from abc import ABC
 import argparse
 from ast import literal_eval
 from pathlib import Path
+import shlex
 import textwrap
 
-from matej.collections import ensure_iterable, tmap
+from matej.collections import ensure_iterable, is_iterable, tmap
 
 
 # Auxiliary stuff
 #pylint: disable = redefined-builtin  # Disable this warning since argparse also redefines a bunch of builtins in its methods
-QUERY = object()  #TODO: Use this for the default parameter in add_argument to query the user for the argument's value if the argument is not provided. Can also add an optional query parameter that determines the query string (default should probably be dest.title().replace('_', ' '))
 
 
 class ArgParser(argparse.ArgumentParser):
@@ -18,6 +18,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	This parser uses :class:`HelpfulFormatter` as its formatter class by default.
 	It also provides the `'store_dict'` action, which allows the user to pass key-value pairs as argument values.
+	Additionally, any argument can be given a :class:`Query` instance as a default value, which will prompt the user for the argument's value if not provided.  #TODO: Test this more thoroughly
 	"""
 
 	def __init__(self, *args, **kw):
@@ -85,6 +86,28 @@ class ArgParser(argparse.ArgumentParser):
 		>>> ap.add_number_arg('-c', '--color', range=(0, 255), nargs=3, metavar=("R", "G", "B"), help="A color in RGB format")
 		"""
 		return self.add_arg(NumberArg(*args, **kw))
+
+	# This is the method that is called by all other parsing methods under the hood.
+	# We override it to allow the user to pass the default value of Query in the parser arguments.
+	def _parse_known_args(self, *args, **kw):
+		namespace, extra = super()._parse_known_args(*args, **kw)
+		for action in self._actions:
+			if action.default is argparse.SUPPRESS or action.dest not in namespace:  # Skip actions without default values (such as the long flag actions in bool arguments) and actions which aren't stored in the namespace (such as help)
+				continue
+			value = getattr(namespace, action.dest)
+			if value is Query:
+				value = Query()
+			if isinstance(value, Query):
+				value = input(value.query or f"Please enter a value for '{action.dest}': ")
+				value = self._get_values(action, shlex.split(value))
+				# action(self, namespace, value, None)  # This won't work with append/extend and similar actions, since we want to be able to pass all of them in at once in the query
+				setattr(namespace, action.dest, value)
+		return namespace, extra
+
+
+class Query:
+	def __init__(self, query=None):
+		self.query = query
 
 
 class Arg(ABC):
@@ -262,9 +285,9 @@ class BoolArg(Arg):
 		dest = kw.get('dest', (self.yes_flags[0] if self.yes_flags else self.flags[0]).lstrip('-')).replace('-', '_')
 		group = parser.add_mutually_exclusive_group()
 		if self.yes_flags:
-			result = group.add_argument(*self.yes_flags, dest=dest, action='store_true', help=self.yes_help, **kw)
+			result = group.add_argument(*self.yes_flags, dest=dest, default=argparse.SUPPRESS, action='store_true', help=self.yes_help, **kw)
 		if self.no_flags:
-			group.add_argument(*self.no_flags, dest=dest, action='store_false', help=self.no_help, **kw)
+			group.add_argument(*self.no_flags, dest=dest, default=argparse.SUPPRESS, action='store_false', help=self.no_help, **kw)
 		if self.short_flags:
 			result = group.add_argument(*self.short_flags, dest=dest, nargs='?', default=self.default, const=not self.default, type=self._str_to_bool, help=self.short_help, **kw)
 		return result
@@ -448,8 +471,7 @@ class StoreDictPairsAction(argparse.Action):
 class ListOrSingleAction(argparse.Action):
 	""" Custom action that converts a list of length 1 into a single value for arguments that can receive multiple values. """
 	def __call__(self, parser, namespace, values, option_string=None):
-		values = ensure_iterable(values, str)
-		if len(values) == 1:
+		if is_iterable(values, True) and len(values) == 1:
 			values = values[0]
 		setattr(namespace, self.dest, values)
 
@@ -509,6 +531,13 @@ if __name__ == '__main__':
 
 	# Terminator arg
 	assert ap.parse_args(['--']).number_arg is None
+
+	# Query args
+	ap.add_str_arg('-q', '--query-arg', default=Query, help="query arg")
+	ap.add_bool_arg('-q2', '--query-arg2', default=Query("Please enter a boolean: "), help="query bool arg")
+	_namespace = ap.parse_args([])
+	print(_namespace.query_arg)
+	print(_namespace.query_arg2)
 
 	# Print help
 	ap.parse_args(['-h'])
