@@ -5,7 +5,7 @@ from pathlib import Path
 import shlex
 import textwrap
 
-from matej.collections import ensure_iterable, is_iterable, tmap
+from matej.collections import ensure_iterable, is_iterable, tmap, tfilter
 
 
 # Auxiliary stuff
@@ -392,7 +392,8 @@ class NumberArg(Arg):
 
 		self.type = type
 		if self.type is None:
-			self.type = int if min is not None and isinstance(min, int) and (max is None or isinstance(max, int)) or max is not None and isinstance(max, int) and min is None else float
+			passed_values = tfilter(lambda x: x is not None, (min, max, kw.get('default')))
+			self.type = int if passed_values and all(isinstance(x, int) for x in passed_values) else float
 
 		def _type(x):
 			x = self.type(x)
