@@ -56,6 +56,26 @@ def pythonpath(*paths):
 		sys.path = oldpath
 
 
+@contextmanager
+def verbosity(verbosity=True):
+	"""
+	Temporarily override the built-in print function to respect the `verbosity` setting.
+
+	Use this context manager to control whether print statements are executed or not.
+
+	Parameters
+	----------
+	verbosity : bool, default=True
+		If `True`, `print` statements will be executed. If `False`, they will be suppressed.
+	"""
+	old_print = print
+	print = lambda *args, **kw: old_print(*args, **kw) if verbosity else None
+	try:
+		yield
+	finally:
+		print = old_print
+
+
 class Singleton(type):
 	"""
 	Singleton metaclass.
