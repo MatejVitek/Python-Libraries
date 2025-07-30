@@ -69,14 +69,14 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 		Username for SMTP authentication (usually the sender's email).
 	smtp_password : str
 		Password or app-specific password for SMTP authentication.
-	from_email : str
-		Email address that will appear in the "From" field.
 	to_emails : List[str], optional
 		List of recipient email addresses.
 	cc_emails : List[str], optional
 		List of CC (carbon copy) email addresses.
 	bcc_emails : List[str], optional
 		List of BCC (blind carbon copy) email addresses.
+	reply_to : str, optional
+		Email address for the Reply-To header.
 	subject : str, default=''
 		Subject line of the email.
 	plain_text : str, default=''
@@ -89,6 +89,8 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 		Security protocol for SMTP. Can be 'ssl' or 'starttls', ''. If None, defaults to SSL if port 465, STARTTLS if port 587, '' otherwise.
 	from_name : str, default=''
 		Display name that will appear in the "From" field.
+	from_email : str, default=''
+		Email address that will appear in the "From" field.
 	from_full : str, optional
 		Override the "From" field with a custom value.
 	send_individually : bool, default=False
@@ -114,10 +116,10 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 		if not from_name:
 			from_name = smtp_user.split('@')[0].replace('.', ' ').title()
 
+	asynchronous = asynchronous and send_individually  # No point in async if just sending one email
 	if asynchronous and not aiosmtplib:
 		warnings.warn("aiosmtplib is not installed. Falling back to synchronous sending.")
 		asynchronous = False
-	asynchronous = asynchronous and send_individually  # No point in async if just sending one email
 
 	if send_individually:
 		msgs = []
