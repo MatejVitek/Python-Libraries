@@ -117,6 +117,7 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 	if asynchronous and not aiosmtplib:
 		warnings.warn("aiosmtplib is not installed. Falling back to synchronous sending.")
 		asynchronous = False
+	asynchronous = asynchronous and send_individually  # No point in async if just sending one email
 
 	if send_individually:
 		msgs = []
