@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# USAGE: python send_email.py RECIPIENT_EMAIL [RECEIPIENT_EMAIL ...] -f BODY_FILE [OPTIONS]
+# USAGE: python send_email.py RECIPIENT_EMAIL [RECIPIENT_EMAIL ...] -f BODY_FILE [OPTIONS]
 # Keep in mind that many SMTP providers require app-specific passwords, 2FA, or other security measures.
 # For Gmail specifically, you need to:
 # - enable 2FA;
@@ -11,12 +11,13 @@ from html.parser import HTMLParser
 import os
 import re
 
+# Install matej libraries (tested with 0.12.3)
 from matej.argparse import ArgParser, StrArg
 from matej.web.email import send_email
 
 
 class EmailArg(StrArg):
-	EMAIL_RE = re.compile(r'[\w\.-]+@[\w\.-]+\.\w+')
+	EMAIL_RE = re.compile(r'[\w\.-]+@[\w\.-]+\.[\w-]+')
 
 	def _type(self, s):
 		s = super()._type(s)
@@ -32,6 +33,7 @@ def parse_cli_args():
 	ap = ArgParser(description="Send an email via SMTP.")
 	ap.add_arg(EmailArg('emails', help="Addresses of the recipients", nargs='*'))
 	ap.add_path_arg('-f', '--file', help="Path to file containing the email body", required=True)
+	ap.add_path_arg('-a', '--attachment', '--attachments', help="Path(s) to file(s) to attach", nargs='+')
 	ap.add_str_arg('-s', '--subject', help="Email subject")
 	ap.add_str_arg('-u', '--user', help="SMTP login username")
 	ap.add_str_arg('-p', '--password', help="SMTP password (for increased security, set it in the environment variable SMTP_PASSWORD or leave empty to get prompted securely)")
@@ -42,9 +44,10 @@ def parse_cli_args():
 	ap.add_str_arg('-n', '--from-name', help="Sender display name")
 	ap.add_str_arg('-F', '--from-full', help="Override 'From' field with custom value")
 	ap.add_arg(EmailArg('-r', '--reply-to', help="Reply-To email address"))
-	ap.add_arg(EmailArg('-c', '--cc', help="CC emails (will be added on each email if sending individually)", nargs='*'))
-	ap.add_arg(EmailArg('-b', '--bcc', help="BCC emails (will be added on each email if sending individually)", nargs='*'))
+	ap.add_arg(EmailArg('-c', '--cc', help="CC emails (will be added on each email if sending individually)", nargs='+'))
+	ap.add_arg(EmailArg('-b', '--bcc', help="BCC emails (will be added on each email if sending individually)", nargs='+'))
 	ap.add_bool_arg('-i', '--send-individually', help="Send emails to each recipient separately", default=True)
+	ap.add_number_arg('-l', '--limit', '--rate-limit', help="Rate limit (in emails per second)", nargs=1, default=None, min=0)
 	return ap.parse_args()
 
 
@@ -80,6 +83,10 @@ def detect_html(content):
 def main():
 	args = parse_cli_args()
 
+	# Validate recipients
+	if not args.emails and not args.cc and not args.bcc:
+		raise ValueError("At least one recipient email address is required (To, CC, or BCC).")
+
 	# SMTP username prompt (with repeat on empty)
 	while not args.user:
 		args.user = input("SMTP username (email): ").strip()
@@ -106,6 +113,7 @@ def main():
 		plain_text = raw
 		html = None
 
+	# Send the email
 	send_email(
 		smtp_server=args.server,
 		smtp_port=args.port,
@@ -122,7 +130,9 @@ def main():
 		subject=args.subject,
 		plain_text=plain_text,
 		html_content=html,
+		attachments=args.attachment,
 		send_individually=args.send_individually,
+		rate_limit=args.limit,
 	)
 
 

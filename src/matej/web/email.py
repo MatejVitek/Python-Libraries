@@ -1,8 +1,13 @@
 import asyncio as aio
 from email.message import EmailMessage
 from email.utils import make_msgid, formataddr
+import mimetypes
+from pathlib import Path
 import smtplib
+import time
 import warnings
+
+from matej.collections import ensure_iterable
 
 try:
 	import aiosmtplib
@@ -10,7 +15,7 @@ except ImportError:
 	aiosmtplib = None
 
 
-def _build(subject, plain_text, from_name, from_email, from_full=None, to_addrs=None, cc_addrs=None, reply_to=None, html_content=None):
+def _build(subject, plain_text, from_name, from_email, from_full=None, to_addrs=None, cc_addrs=None, reply_to=None, html_content=None, attachments=None):
 	msg = EmailMessage()
 	msg['Subject'] = subject
 	msg['From'] = from_full if from_full else formataddr((from_name, from_email))
@@ -21,10 +26,28 @@ def _build(subject, plain_text, from_name, from_email, from_full=None, to_addrs=
 		msg['Reply-To'] = reply_to
 	msg['Message-ID'] = make_msgid()
 	msg['X-Priority'] = '3'
-	msg['X-Mailer'] = 'Python EmailSender'
+	msg['X-Mailer'] = 'PyMailer'
+	if from_email:
+		if 'gmail' in from_email.lower():
+			msg['XMailer'] = 'Gmail'    # Maybe less chance of spam filters
+		elif 'outlook' in from_email.lower():
+			msg['XMailer'] = 'Outlook'  # if we use these headers?
 	msg.set_content(plain_text)
 	if html_content:
 		msg.add_alternative(html_content, subtype='html')
+
+	if attachments:
+		for attachment in ensure_iterable(attachments):
+			attachment = Path(attachment)
+			if not attachment.is_file():
+				raise ValueError(f"Attachment not found or is not a file: {attachment}")
+			content_type, _ = mimetypes.guess_type(attachment)
+			if content_type is None:
+				content_type = 'application/octet-stream'
+			main_type, sub_type = content_type.split('/', 1)
+			with attachment.open('rb') as f:
+				msg.add_attachment(f.read(), maintype=main_type, subtype=sub_type, filename=attachment.name)
+
 	return msg
 
 
@@ -57,7 +80,7 @@ def _infer_email_address(user, server):
 	return f'{user}@{domain}'
 
 
-def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=None, bcc_emails=None, reply_to=None, subject='', plain_text='', html_content=None, smtp_port=465, smtp_protocol=None, from_name='', from_email='', from_full=None, send_individually=False, asynchronous=True):
+def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=None, bcc_emails=None, reply_to=None, subject='', plain_text='', html_content=None, attachments=None, smtp_port=465, smtp_protocol=None, from_name='', from_email='', from_full=None, send_individually=False, asynchronous=True, rate_limit=None):
 	"""
 	Send an email with support for To, CC, BCC, and optional individual sending.
 
@@ -69,11 +92,11 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 		Username for SMTP authentication (usually the sender's email).
 	smtp_password : str
 		Password or app-specific password for SMTP authentication.
-	to_emails : List[str], optional
+	to_emails : Collection[str], optional
 		List of recipient email addresses.
-	cc_emails : List[str], optional
+	cc_emails : Collection[str], optional
 		List of CC (carbon copy) email addresses.
-	bcc_emails : List[str], optional
+	bcc_emails : Collection[str], optional
 		List of BCC (blind carbon copy) email addresses.
 	reply_to : str, optional
 		Email address for the Reply-To header.
@@ -83,6 +106,8 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 		Plain-text version of the email body.
 	html_content : str, optional
 		HTML version of the email body. If provided, the email will be sent as multipart/alternative.
+	attachments : Collection[str], optional
+		List of file paths to attach to the email.
 	smtp_port : int, default=465
 		Port number for SMTP (typically 465 for SSL, 587 for STARTTLS).
 	smtp_protocol : str, optional
@@ -94,15 +119,15 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 	from_full : str, optional
 		Override the "From" field with a custom value.
 	send_individually : bool, default=False
-		If True, send one email per recipient (To + CC + BCC each get a separate message).
+		If `True`, send one email per recipient (To + CC + BCC each get a separate message).
 	asynchronous : bool, default=True
-		Use aiosmtplib for asnychronous sending.
+		Send emails asynchronously.
+	rate_limit : int, optional
+		Number of emails to send per second. If `None` or `0`, no rate limiting is applied.
 	"""
 	to_emails = to_emails or []
 	cc_emails = cc_emails or []
 	bcc_emails = bcc_emails or []
-
-	all_recipients = list(set(to_emails + cc_emails + bcc_emails))
 
 	# Determine SMTP protocol if not provided
 	if smtp_protocol is None:
@@ -129,19 +154,30 @@ def send_email(smtp_server, smtp_user, smtp_password, to_emails=None, cc_emails=
 			# Cc list: all CC recipients
 			cc_list = cc_emails if cc_emails else []
 			# Build email message with one TO, full CC, no BCC in headers
-			msg = _build(subject, plain_text, from_name, from_email, from_full, to_list, cc_list, reply_to, html_content)
+			msg = _build(subject, plain_text, from_name, from_email, from_full, to_list, cc_list, reply_to, html_content, attachments)
 			# Recipients for SMTP envelope include TO, CC, and BCC
 			smtp_recipients = list(set(to_list + cc_list + bcc_emails))
 			msgs.append((msg, smtp_recipients))
 	else:
-		msg = _build(subject, plain_text, from_name, from_email, from_full, to_emails, cc_emails, reply_to, html_content)
-		msgs = [(msg, all_recipients)]
+		msg = _build(subject, plain_text, from_name, from_email, from_full, to_emails, cc_emails, reply_to, html_content, attachments)
+		msgs = [(msg, list(set(to_emails + cc_emails + bcc_emails)))]
 
 	if asynchronous:
 		async def _send_all():
-			tasks = [_send_async(recipients, msg, smtp_server, smtp_port, smtp_protocol, smtp_user, smtp_password) for msg, recipients in msgs]
+			semaphore = aio.Semaphore(1)
+
+			async def limited_send(i, msg, recipients):
+				async with semaphore:
+					if rate_limit and i > 0:
+						await aio.sleep(1 / rate_limit)
+					await _send_async(recipients, msg, smtp_server, smtp_port, smtp_protocol, smtp_user, smtp_password)
+
+			tasks = [aio.create_task(limited_send(i, msg, recipients)) for i, (msg, recipients) in enumerate(msgs)]
 			await aio.gather(*tasks)
+
 		return aio.run(_send_all())
 
-	for msg, recipients in msgs:
+	for i, (msg, recipients) in enumerate(msgs):
+		if rate_limit and i > 0:
+			time.sleep(1 / rate_limit)
 		_send(recipients, msg, smtp_server, smtp_port, smtp_protocol, smtp_user, smtp_password)
