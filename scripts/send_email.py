@@ -11,7 +11,7 @@ from html.parser import HTMLParser
 import os
 import re
 
-# Install matej libraries (tested with 0.12.3)
+# Install matej libraries (tested with 0.12.3): https://sclera.fri.uni-lj.si/code.html#Libraries
 from matej.argparse import ArgParser, StrArg
 from matej.web.email import send_email
 

@@ -1,3 +1,10 @@
+# To upload to PyPI, install python-build and twine, then:
+# python -m build
+# twine upload dist/*
+# rm -rf build dist *.egg-info src/*.egg-info
+# Once pixi allows global tasks, we can automate this there.
+# If you have ~/.pypirc, you can do this without manually entering the PyPI API token every time (keep .pypirc secure though).
+
 [build-system]
 requires = ["setuptools >= 64"]
 build-backend = "setuptools.build_meta"
