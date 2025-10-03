@@ -11,7 +11,6 @@ from html.parser import HTMLParser
 import os
 import re
 
-# Install matej libraries (tested with 0.12.3): https://sclera.fri.uni-lj.si/code.html#Libraries
 from matej.argparse import ArgParser, StrArg
 from matej.web.email import send_email
 
@@ -47,7 +46,7 @@ def parse_cli_args():
 	ap.add_arg(EmailArg('-c', '--cc', help="CC emails (will be added on each email if sending individually)", nargs='+'))
 	ap.add_arg(EmailArg('-b', '--bcc', help="BCC emails (will be added on each email if sending individually)", nargs='+'))
 	ap.add_bool_arg('-i', '--send-individually', help="Send emails to each recipient separately", default=True)
-	ap.add_number_arg('-l', '--limit', '--rate-limit', help="Rate limit (in emails per second)", nargs=1, default=None, min=0)
+	ap.add_number_arg('-l', '--limit', '--rate-limit', help="Rate limit (in emails per second)", nargs=1, min=0)
 	return ap.parse_args()
 
 

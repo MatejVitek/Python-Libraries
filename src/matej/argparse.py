@@ -20,7 +20,6 @@ class ArgParser(argparse.ArgumentParser):
 	It also provides the `'store_dict'` action, which allows the user to pass key-value pairs as argument values.
 	Additionally, any argument can be given a :class:`Query` instance as a default value, which will prompt the user for the argument's value if not provided.  #TODO: Test this more thoroughly
 	"""
-
 	def __init__(self, *args, **kw):
 		""" Initialise the parser. See the documentation of :class:`argparse.ArgumentParser` for more information. """
 		kw.setdefault('formatter_class', HelpfulFormatter)
@@ -117,7 +116,6 @@ class Arg(ABC):
 	Instances of this class's subclasses can be added to an arbitrary :class:`argparse.ArgumentParser` instance
 	using the :meth:`add_to_ap` method,	although certain restrictions apply, as specified in the subclasses' docs.
 	"""
-
 	def __init__(self, *flags, **kw):
 		"""
 		Initialise the argument.
@@ -180,9 +178,9 @@ class Arg(ABC):
 		return f'{self.name_flag} {value}'
 
 
+#TODO: Figure out what to do in case of multiple args (nargs='+' or nargs='*')
 class NullableArg(Arg, ABC):
 	""" Base class for arguments that may allow `None` as a valid value. """
-
 	def __init__(self, *flags, nullable=None, null_phrases=('', 'none'), **kw):
 		"""
 		Initialise the argument.
@@ -284,6 +282,7 @@ class BoolArg(Arg):
 		kw = self.kw | kw
 		dest = kw.get('dest', (self.yes_flags[0] if self.yes_flags else self.flags[0]).lstrip('-')).replace('-', '_')
 		group = parser.add_mutually_exclusive_group()
+		result = None
 		if self.yes_flags:
 			result = group.add_argument(*self.yes_flags, dest=dest, default=argparse.SUPPRESS, action='store_true', help=self.yes_help, **kw)
 		if self.no_flags:
@@ -355,21 +354,17 @@ class ChoiceArg(NullableArg):
 		self.kw['help'] = help
 
 
-#TODO: Make nullable (?) -- what do I do with multiple values in that case? One of them can be None or the entire tuple can be None?
+#TODO: Make nullable
 class NumberArg(Arg):
 	""" Number argument. """
 	def __init__(self, *flags, min=None, max=None, range=None, type=None, help="", **kw):
 		"""
 		Initialise the argument.
 
-		The argument can receive multiple values (if it does, they will be stored as a list). This can be explicitly restricted by passing `nargs=1` to this method.
-
 		Parameters
 		----------
 		action : str or :class:`argparse.Action`, default=ListOrSingleAction
 			The action to use for the argument. Should most likely be left as default but can be overridden if necessary.
-		nargs : int or str, default='+'
-			The number of arguments to parse. See the documentation of :meth:`argparse.ArgumentParser.add_argument` for more information.
 		min : Union[int, float], optional
 			The minimum value the argument can have.
 		max : Union[int, float], optional
@@ -384,7 +379,6 @@ class NumberArg(Arg):
 			Otherwise, the auto-generated help will contain unformatted range information.
 		"""
 		kw.setdefault('action', ListOrSingleAction)
-		kw.setdefault('nargs', '+')
 		super().__init__(*flags, **kw)
 
 		if range is not None:
