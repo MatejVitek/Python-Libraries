@@ -28,7 +28,7 @@ class ArgParser(argparse.ArgumentParser):
 
 	def add_arg(self, arg):
 		""" Add an :class:`Arg` instance to this parser. """
-		arg.add_to_ap(self)
+		return arg.add_to_ap(self)
 
 	def add_str_arg(self, *args, **kw):
 		"""
@@ -188,18 +188,16 @@ class NullableArg(Arg, ABC):
 		Parameters
 		----------
 		nullable : Optional[bool]
-			Whether the argument can be `None`. If not provided, will be `False`, unless `default` is passed as `None`.
+			Whether the argument can be `None`. If not provided, will be `False`, unless `default` is explicitly passed as `None`.
 		null_phrases : Collection[str], default=('', 'none')
 			Phrases that will be interpreted as `None` if the argument is nullable (case-insensitive).
 		"""
-		self.nullable = (kw.get('default') is None) if nullable is None else nullable
+		default_is_none = 'default' in kw and kw['default'] is None
+		if default_is_none and nullable is False:
+			raise ValueError("Cannot have a None default value for a non-nullable argument")
+		self.nullable = default_is_none if nullable is None else nullable
 		self.null_phrases = tmap(str.lower, null_phrases)
-		if 'default' in kw and kw['default'] is None:
-			if self.nullable is False:
-				raise ValueError("Cannot have a None default value for a non-nullable argument")
-			self.nullable = True
 		kw.setdefault('type', self._type)
-		kw.setdefault('nargs', '?')
 		super().__init__(*flags, **kw)
 
 	def __init_subclass__(cls, type=str):
@@ -212,12 +210,29 @@ class NullableArg(Arg, ABC):
 		return self.type(s)
 
 
+# This used to have nargs='?' by default, so if you get errors or weird behaviour, pass nargs='?' when constructing this argument
 class StrArg(NullableArg):
-	""" String argument. By default this argument is optional and accepts a single string as its value. """
+	""" String argument. """
+	def __init__(self, *flags, lowercase=False, **kw):
+		"""
+		Initialise the argument.
+
+		Parameters
+		----------
+		lowercase : bool, default=False
+			Whether to convert the argument value to lowercase. Useful when the argument value is used for case-insensitive purposes.
+		"""
+		super().__init__(*flags, **kw)
+		self.lowercase = lowercase
+
+	def _type(self, s):
+		s = super()._type(s)
+		return s.lower() if self.lowercase and s is not None else s
 
 
+# This used to have nargs='?' by default, so if you get errors or weird behaviour, pass nargs='?' when constructing this argument
 class PathArg(NullableArg, type=Path):
-	""" Path argument. By default this argument is optional and accepts a single path as its value. """
+	""" Path argument. """
 
 
 class BoolArg(Arg):
