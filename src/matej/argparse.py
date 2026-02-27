@@ -116,6 +116,7 @@ class Arg(ABC):
 	Instances of this class's subclasses can be added to an arbitrary :class:`argparse.ArgumentParser` instance
 	using the :meth:`add_to_ap` method,	although certain restrictions apply, as specified in the subclasses' docs.
 	"""
+	#TODO: Maybe we should have an unwrap parameter that allows us to unwrap a single-element list in multi-arg arguments?
 	def __init__(self, *flags, **kw):
 		"""
 		Initialise the argument.
