@@ -25,12 +25,26 @@ import sys
 
 
 try:
-	__version__ = importlib.metadata.version(__package__ or __name__)
+	__version__ = importlib.metadata.version('matej-libs')
 except importlib.metadata.PackageNotFoundError:
 	from pathlib import Path
 	import re
-	with (Path(__file__).resolve().parent.parent.parent/'pyproject.toml').open('r', encoding='utf-8') as f:
-		__version__ = re.search(r'version\s*=\s*[\'"]?([^\'"]*)[\'"]?', f.read()).group(1)
+
+	_current_dir = Path(__file__).resolve().parent
+	_toml_path = None
+
+	# Walk up the tree up to 4 levels looking for pyproject.toml
+	for _ in range(4):
+		if (_current_dir/'pyproject.toml').is_file():
+			_toml_path = _current_dir/'pyproject.toml'
+			break
+		_current_dir = _current_dir.parent
+
+	if _toml_path:
+		with _toml_path.open('r', encoding='utf-8') as f:
+			__version__ = re.search(r'version\s*=\s*[\'"]?([^\'"]*)[\'"]?', f.read()).group(1)
+	else:
+		__version__ = 'unknown'
 
 
 @contextmanager
