@@ -133,7 +133,7 @@ class TestCollections:
 		mc.dmap_(lambda x: x + 1, d)
 		assert d == {1: 3, 3: 5}
 		l = [1, 2, 3]
-		assert mc.tmap(lambda x: x + 1, l) == [2, 3, 4]
+		assert mc.lmap(lambda x: x + 1, l) == [2, 3, 4]
 		assert l == [1, 2, 3]
 		mc.lmap_(lambda x: x + 1, l)
 		assert l == [2, 3, 4]

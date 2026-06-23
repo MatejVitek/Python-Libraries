@@ -315,8 +315,8 @@ class SparseMultiGrid(SparseGrid):
 # lmap_ and dmap_ are in-place versions of lmap and dmap
 # First we define the types and initialise to a placeholder value (these three lines are just for type hinting and to avoid warnings)
 _d = Callable[[Iterable], Dict]; _l = Callable[[Iterable], List]; _s = Callable[[Iterable], Set]; _t = Callable[[Iterable], Tuple]
-dmap: _d; dmap_: _d; dfilter: _d; dzip: _d; dflatten: _d; tmap: _l; lmap_: _l; lfilter: _l; lzip: _l; lflatten: _l; smap: _s; sfilter: _s; szip: _s; sflatten: _s; tmap: _t; tfilter: _t; tzip: _t; tflatten: _t
-dmap = dmap_ = dfilter = dzip = dflatten = tmap = lmap_ = lfilter = lzip = lflatten = smap = sfilter = szip = sflatten = tmap = tfilter = tzip = tflatten = lambda *_, **__: None
+dmap: _d; dmap_: _d; dfilter: _d; dzip: _d; dflatten: _d; lmap: _l; lmap_: _l; lfilter: _l; lzip: _l; lflatten: _l; smap: _s; sfilter: _s; szip: _s; sflatten: _s; tmap: _t; tfilter: _t; tzip: _t; tflatten: _t
+dmap = dmap_ = dfilter = dzip = dflatten = lmap = lmap_ = lfilter = lzip = lflatten = smap = sfilter = szip = sflatten = tmap = tfilter = tzip = tflatten = lambda *_, **__: None
 # And now we actually generate the functions and their docs
 for col, func in it.product((dict, list, set, tuple), (map, filter, zip, flatten)):
 	# The name is the first letter of the collection followed by the name of the function
