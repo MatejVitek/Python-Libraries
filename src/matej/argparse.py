@@ -87,9 +87,66 @@ class ArgParser(argparse.ArgumentParser):
 		return self.add_arg(NumberArg(*args, **kw))
 
 	# This is the method that is called by all other parsing methods under the hood.
-	# We override it to allow the user to pass the default value of Query in the parser arguments.
+	# We override it to allow the user to pass the default value of Query in the parser arguments
+	# and to allow arguments that are both positional and flag-based.
 	def _parse_known_args(self, *args, **kw):
 		namespace, extra = super()._parse_known_args(*args, **kw)
+
+		# Merge dual positional/flag arguments
+		for action in self._actions:
+			if getattr(action, 'is_dual_positional', False):
+				dest = action.dest
+				pos_dest = f"__hidden_positional_{dest}__"
+
+				has_flag = hasattr(namespace, dest)
+				has_pos = hasattr(namespace, pos_dest)
+
+				if has_flag and has_pos:
+					pos_val = getattr(namespace, pos_dest)
+					# If the positional list is empty when nargs=*, it means it wasn't provided positionally
+					if getattr(action, 'orig_nargs', None) not in (None, '?') and pos_val == []:
+						has_pos = False
+
+					if has_flag and has_pos:
+						raise argparse.ArgumentError(action, f"argument {action.option_strings[0] if action.option_strings else dest}: provided both as a flag and positionally")
+
+				val = None
+				if has_flag:
+					val = getattr(namespace, dest)
+				elif has_pos:
+					pos_val = getattr(namespace, pos_dest)
+					orig_nargs = getattr(action, 'orig_nargs', None)
+
+					if orig_nargs not in (None, '?'):
+						if not pos_val:
+							has_pos = False
+						else:
+							val = pos_val
+					else:
+						if pos_val is None:
+							has_pos = False
+						else:
+							val = pos_val
+
+				if has_pos:
+					# Enforce original nargs manually since we downcasted it
+					orig_nargs = getattr(action, 'orig_nargs', None)
+					if isinstance(orig_nargs, int):
+						if len(val) != orig_nargs:
+							raise argparse.ArgumentError(action, f"expected {orig_nargs} arguments")
+					elif orig_nargs == '+':
+						if len(val) < 1:
+							raise argparse.ArgumentError(action, f"expected at least 1 argument")
+
+					setattr(namespace, dest, val)
+				elif not has_flag:
+					if action.true_default is not argparse.SUPPRESS:
+                        # Will be checked in the next loop to see if it's Query
+						setattr(namespace, dest, action.true_default)
+
+				if hasattr(namespace, pos_dest):
+					delattr(namespace, pos_dest)
+
 		for action in self._actions:
 			if action.default is argparse.SUPPRESS or action.dest not in namespace:  # Skip actions without default values (such as the long flag actions in bool arguments) and actions which aren't stored in the namespace (such as help)
 				continue
@@ -117,7 +174,7 @@ class Arg(ABC):
 	using the :meth:`add_to_ap` method,	although certain restrictions apply, as specified in the subclasses' docs.
 	"""
 	#TODO: Maybe we should have an unwrap parameter that allows us to unwrap a single-element list in multi-arg arguments?
-	def __init__(self, *flags, **kw):
+	def __init__(self, *flags, positional=False, **kw):
 		"""
 		Initialise the argument.
 
@@ -126,20 +183,57 @@ class Arg(ABC):
 		flags : Collection[str]
 			Optional flags for the argument.
 			If no flags are provided, the `dest` keyword argument must be provided instead. In this case, the argument will be positional.
+		positional : bool, default=False
+			If True, this argument will be supported both as a flag (e.g. `--source`) and as a positional argument.
+			This parameter is only relevant (and only has an effect) if flags are provided.
 		**kw
 			Keyword arguments to pass to the :meth:`argparse.ArgumentParser.add_argument` method.
 		"""
+		self.positional = positional
 		self.flags = flags
 		self.kw = kw
 		if 'nargs' in kw and (kw['nargs'] in ('*', '+') or isinstance(kw['nargs'], int) and kw['nargs'] > 1):
 			self.kw.setdefault('default', [])
+
+	def _add_hidden_positional(self, parser, action, dest, kw, true_default, orig_nargs):
+		""" Helper method to create the hidden positional argument for dual positional/flag support. """
+		pos_kw = kw.copy()
+		pos_kw['help'] = argparse.SUPPRESS
+		if 'dest' in pos_kw:
+			del pos_kw['dest']
+		pos_kw['default'] = argparse.SUPPRESS
+
+		# Downcast nargs so positional isn't strictly required
+		pos_kw['nargs'] = '?' if orig_nargs in (None, '?') else '*'
+		if 'required' in pos_kw:
+			del pos_kw['required']
+
+		parser.add_argument(f"__hidden_positional_{dest}__", **pos_kw)
+
+		action.is_dual_positional = True
+		action.true_default = true_default
+		action.orig_nargs = orig_nargs
+		action.dest = dest # Ensure it matches for the merge logic
 
 	def add_to_ap(self, parser, **kw):
 		""" Add this argument to the given parser. """
 		kw = self.kw | kw
 		if not self.flags and 'dest' not in kw:
 			raise ValueError("You must provide a destination name for flagless arguments")
-		return parser.add_argument(*self.flags, **kw)
+
+		if not getattr(self, 'positional', False) or not self.flags:
+			return parser.add_argument(*self.flags, **kw)
+
+		# Handle dual positional/flag arguments
+		true_default = kw.get('default', None)
+		kw['default'] = argparse.SUPPRESS
+		orig_nargs = kw.get('nargs', None)
+
+		# Create flag argument
+		action = parser.add_argument(*self.flags, **kw)
+		self._add_hidden_positional(parser, action, action.dest, kw, true_default, orig_nargs)
+
+		return action
 
 	@property
 	def name_flag(self):
@@ -300,12 +394,21 @@ class BoolArg(NullableArg):
 		dest = kw.get('dest', (self.yes_flags[0] if self.yes_flags else self.flags[0]).lstrip('-')).replace('-', '_')
 		group = parser.add_mutually_exclusive_group()
 		result = None
+
+		is_dual = getattr(self, 'positional', False) and self.flags
+		short_default = argparse.SUPPRESS if is_dual else bool(self.default)
+
 		if self.yes_flags:
 			result = group.add_argument(*self.yes_flags, dest=dest, default=argparse.SUPPRESS, action='store_true', help=self.yes_help, **typeless_kw)
 		if self.no_flags:
 			group.add_argument(*self.no_flags, dest=dest, default=argparse.SUPPRESS, action='store_false', help=self.no_help, **typeless_kw)
 		if self.short_flags:
-			result = group.add_argument(*self.short_flags, dest=dest, nargs='?', default=bool(self.default), const=not self.default, help=self.short_help, **kw)
+			result = group.add_argument(*self.short_flags, dest=dest, nargs='?', default=short_default, const=not self.default, help=self.short_help, **kw)
+
+		if is_dual:
+			action_to_mark = result or group._group_actions[0]
+			self._add_hidden_positional(parser, action_to_mark, dest, kw, self.default, None)
+
 		return result
 
 	@staticmethod
@@ -495,7 +598,7 @@ if __name__ == '__main__':
 
 	# Path args
 	ap.add_path_arg('-p', '--path-arg', default='', help="first path arg")
-	ap.add_path_arg(dest='second_path_arg', default='', help="second path arg")
+	ap.add_path_arg(dest='second_path_arg', nargs='?', default='', help="second path arg")
 	assert ap.parse_args(['asdf']).second_path_arg == Path('asdf')
 	assert ap.parse_args(['-p', 'qwer']).path_arg == Path('qwer')
 	_namespace = ap.parse_args(['asdf', '-p', 'qwer'])
@@ -533,7 +636,7 @@ if __name__ == '__main__':
 	ap.add_number_arg('-m', '--number-arg', range=(0, 100.), nargs='+', help="number arg")
 	ap.add_number_arg('-n', '--number-arg2', min=0, default=40, help="default 40 number arg")
 	_namespace = ap.parse_args([])
-	assert _namespace.number_arg is None
+	assert _namespace.number_arg == []
 	assert _namespace.number_arg2 == 40
 	assert ap.parse_args(['-m', '50']).number_arg == 50.
 	assert ap.parse_args(['-n', '610']).number_arg2 == 610
@@ -543,7 +646,7 @@ if __name__ == '__main__':
 	# ap.parse_args(['-n', '-1'])  # should raise error
 
 	# Terminator arg
-	assert ap.parse_args(['--']).number_arg is None
+	assert ap.parse_args(['--']).number_arg == []
 
 	# Query args
 	ap.add_str_arg('-q', '--query-arg', default=Query, help="query arg")
@@ -551,6 +654,46 @@ if __name__ == '__main__':
 	_namespace = ap.parse_args([])
 	print(_namespace.query_arg)
 	print(_namespace.query_arg2)
+
+	# Dual Positional/Flag args
+	ap2 = ArgParser()
+	ap2.add_str_arg('-d', '--dual-arg', positional=True, default='dual_default', help="dual positional/flag arg")
+	ap2.add_path_arg('-p2', '--dual-path', positional=True, default=Path('p_def'), help="dual path arg")
+	ap2.add_bool_arg('-b', '--bool', positional=True, default=False)
+	ap2.add_choice_arg((1, 2, 3), '-c', '--choice', positional=True, default=1)
+	ap2.add_number_arg('-d2', '--dual-arg2', positional=True, nargs=2, default=[1.0, 2.0], help="dual nargs=2 arg")
+
+	# Test neither provided
+	_namespace = ap2.parse_args([])
+	assert _namespace.dual_arg == 'dual_default'
+	assert _namespace.dual_path == Path('p_def')
+	assert _namespace.bool is False
+	assert _namespace.choice == 1
+	assert _namespace.dual_arg2 == [1.0, 2.0]
+
+	# Test flags
+	_namespace = ap2.parse_args(['--dual-arg', 'flag_val', '--dual-path', 'p_flag', '--bool', '-c', '2', '--dual-arg2', '3.0', '4.0'])
+	assert _namespace.dual_arg == 'flag_val'
+	assert _namespace.dual_path == Path('p_flag')
+	assert _namespace.bool is True
+	assert _namespace.choice == 2
+	assert _namespace.dual_arg2 == [3.0, 4.0]
+
+	# Test positionals
+	_namespace = ap2.parse_args(['pos_val', 'p_pos', 'True', '3', '5.0', '6.0'])
+	assert _namespace.dual_arg == 'pos_val'
+	assert _namespace.dual_path == Path('p_pos')
+	assert _namespace.bool is True
+	assert _namespace.choice == 3
+	assert _namespace.dual_arg2 == [5.0, 6.0]
+
+	# Test mix
+	_namespace = ap2.parse_args(['pos_val', '--dual-path', 'p_mix', '--bool', '-c', '1', '--dual-arg2', '7.0', '8.0'])
+	assert _namespace.dual_arg == 'pos_val'
+	assert _namespace.dual_path == Path('p_mix')
+	assert _namespace.bool is True
+	assert _namespace.choice == 1
+	assert _namespace.dual_arg2 == [7.0, 8.0]
 
 	# Print help
 	ap.parse_args(['-h'])
