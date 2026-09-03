@@ -211,6 +211,10 @@ class Arg(ABC):
 		parser.add_argument(f"__hidden_positional_{dest}__", **pos_kw)
 
 		action.is_dual_positional = True
+		if action.help and action.help != argparse.SUPPRESS:
+			action.help += " [can also be passed positionally]"
+		elif action.help != argparse.SUPPRESS:
+			action.help = "[can also be passed positionally]"
 		action.true_default = true_default
 		action.orig_nargs = orig_nargs
 		action.dest = dest # Ensure it matches for the merge logic
@@ -355,6 +359,8 @@ class BoolArg(NullableArg):
 		"""
 		super().__init__(*flags, **kw)
 		self.default = self.kw.pop('default', False)
+		if not isinstance(self.default, Query):
+			self.default = bool(self.default)
 
 		self.short_flags = [flag for flag in self.flags if flag[0] == '-' and flag[1] != '-']
 		self.yes_flags = [flag for flag in self.flags if flag[:2] == '--']
@@ -396,14 +402,14 @@ class BoolArg(NullableArg):
 		result = None
 
 		is_dual = getattr(self, 'positional', False) and self.flags
-		short_default = argparse.SUPPRESS if is_dual else bool(self.default)
+		short_default = argparse.SUPPRESS if is_dual else self.default
 
 		if self.yes_flags:
 			result = group.add_argument(*self.yes_flags, dest=dest, default=argparse.SUPPRESS, action='store_true', help=self.yes_help, **typeless_kw)
 		if self.no_flags:
 			group.add_argument(*self.no_flags, dest=dest, default=argparse.SUPPRESS, action='store_false', help=self.no_help, **typeless_kw)
 		if self.short_flags:
-			result = group.add_argument(*self.short_flags, dest=dest, nargs='?', default=short_default, const=not self.default, help=self.short_help, **kw)
+			result = group.add_argument(*self.short_flags, dest=dest, nargs='?', default=short_default, const=not bool(self.default), help=self.short_help, **kw)
 
 		if is_dual:
 			action_to_mark = result or group._group_actions[0]
@@ -533,8 +539,9 @@ class HelpfulFormatter(argparse.RawTextHelpFormatter):
 	""" Custom formatter that allows the use of certain action properties and respects \n in help messages. """
 	def _get_help_string(self, action):
 		help = super()._get_help_string(action)
+		default_val = getattr(action, 'true_default', action.default)
 		format_dict = {
-			'default': f" <default: {action.default}>" if action.default else "",
+			'default': f" <default: {default_val}>" if default_val and default_val != argparse.SUPPRESS else "",
 			'metavar': action.metavar
 		}
 		if not action.metavar:
@@ -696,4 +703,6 @@ if __name__ == '__main__':
 	assert _namespace.dual_arg2 == [7.0, 8.0]
 
 	# Print help
-	ap.parse_args(['-h'])
+	ap.print_help()
+	print("\n" + 50*"=" + "\n")
+	ap2.parse_args(['-h'])  # Calls sys.exit(0) so we can only do it at the end
